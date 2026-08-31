@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+
+# Local development
+.DS_Store
+*.log
+
+# OS/editor junk
+.vscode/
+.idea/
+
+# Project-specific exclusions
+generation_image_fixed.py
+models/
+models
+
+# Generated output folders
+results/*.csv
+results/*.md
+profiling/__pycache__/
+
+# Large local runtime caches
+*.tmp
+*.bak
