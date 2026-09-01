@@ -1,0 +1,9 @@
+timestamp,kind,model,device,input_tokens,output_tokens,reason,returncode,log_file
+2026-09-01 05:13:56,input_scaling,phi-3.5-mini-int4,NPU,1024,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0003_input_scaling_phi-3.5-mini-int4_NPU_in1024_out128.log
+2026-09-01 05:14:26,input_scaling,phi-3.5-mini-int4,NPU,2048,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0005_input_scaling_phi-3.5-mini-int4_NPU_in2048_out128.log
+2026-09-01 05:16:19,input_scaling,phi-3.5-mini-int4,NPU,4096,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0008_input_scaling_phi-3.5-mini-int4_NPU_in4096_out128.log
+2026-09-01 05:20:24,input_scaling,phi-3.5-mini-int4,NPU,8192,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0011_input_scaling_phi-3.5-mini-int4_NPU_in8192_out128.log
+2026-09-01 05:27:00,input_scaling,phi-3.5-mini-int4,NPU,12288,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0014_input_scaling_phi-3.5-mini-int4_NPU_in12288_out128.log
+2026-09-01 05:37:18,input_scaling,phi-3.5-mini-int4,NPU,16384,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0017_input_scaling_phi-3.5-mini-int4_NPU_in16384_out128.log
+2026-09-01 05:58:42,input_scaling,phi-3.5-mini-int4,NPU,24576,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0020_input_scaling_phi-3.5-mini-int4_NPU_in24576_out128.log
+2026-09-01 06:32:08,input_scaling,phi-3.5-mini-int4,NPU,32768,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260901_051202/0023_input_scaling_phi-3.5-mini-int4_NPU_in32768_out128.log

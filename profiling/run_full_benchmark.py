@@ -16,10 +16,13 @@ PROFILER = Path(__file__).resolve().parent / "05_perfmetrics_profiler.py"
     # "phi-3.5-mini-int4",
     # "qwen3-4b-fp16-ov",
     # "qwen3-8b-fp16-ov",
+    # "qwen3-14b-fp16-ov",
+    # "gemma-3-4b-it-fp16-ov",
 
 MODELS = [
-    "qwen3-14b-fp16-ov",
-    "gemma-3-4b-it-fp16-ov",
+    "phi-3.5-mini-int4",
+    "qwen3-4b-fp16-ov",
+    "qwen3-8b-fp16-ov",
 ]
 
 # Input context lengths
