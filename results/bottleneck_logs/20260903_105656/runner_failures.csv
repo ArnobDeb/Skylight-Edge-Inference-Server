@@ -1,0 +1,4 @@
+timestamp,kind,model,device,input_tokens,output_tokens,reason,returncode,log_file
+2026-09-03 11:00:13,input_scaling,phi-3.5-mini-int4,NPU,65536,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260903_105656/0001_input_scaling_phi-3.5-mini-int4_NPU_in65536_out128.log
+2026-09-03 11:07:22,input_scaling,phi-3.5-mini-int4,GPU,98304,128,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260903_105656/0002_input_scaling_phi-3.5-mini-int4_GPU_in98304_out128.log
+2026-09-03 12:43:35,input_scaling,phi-3.5-mini-int4,NPU,98304,128,FAILED with return code -9,-9,/home/semix/apdesai_openvino_intel_mtp/MTP/results/bottleneck_logs/20260903_105656/0003_input_scaling_phi-3.5-mini-int4_NPU_in98304_out128.log

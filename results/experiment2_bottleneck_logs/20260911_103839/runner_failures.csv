@@ -1,0 +1,2 @@
+timestamp,kind,model,device,input_tokens,output_tokens,reason,returncode,log_file
+2026-09-11 10:39:34,output_scaling,phi-3.5-mini-int4,NPU,1024,65536,FAILED with return code -9,-9,/home/semix/apdesai_openvino_intel_mtp/MTP/results/experiment2_bottleneck_logs/20260911_103839/0001_output_scaling_phi-3.5-mini-int4_NPU_in1024_out65536.log

@@ -1,0 +1,3 @@
+timestamp,kind,model,device,input_tokens,output_tokens,reason,returncode,log_file
+2026-09-10 21:01:03,output_scaling,qwen3-8b-fp16-ov,GPU,1024,65536,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/experiment2_bottleneck_logs/20260910_171543/0001_output_scaling_qwen3-8b-fp16-ov_GPU_in1024_out65536.log
+2026-09-10 21:01:25,output_scaling,qwen3-8b-fp16-ov,NPU,1024,65536,FAILED with return code 2,2,/home/semix/apdesai_openvino_intel_mtp/MTP/results/experiment2_bottleneck_logs/20260910_171543/0002_output_scaling_qwen3-8b-fp16-ov_NPU_in1024_out65536.log

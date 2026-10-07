@@ -40,10 +40,12 @@ INPUT_SWEEPS = {
     "qwen3-4b-fp16-ov": [
         1024, 2048, 4096, 8192,
         12288, 16384, 24576, 32768,
+        49152, 65536, 98304, 131072,
     ],
     "qwen3-8b-fp16-ov": [
         1024, 2048, 4096, 8192,
         12288, 16384, 24576, 32768,
+        49152, 65536, 98304, 131072,
     ],
 }
 
@@ -53,7 +55,7 @@ INPUT_SWEEP_OUTPUT_TOKENS = 128
 # Run CPU/GPU/NPU first. HETERO can be added later as a separate
 # scheduling experiment; it obscures device-local bottlenecks.
 DEVICES = [
-    "CPU",
+    # "CPU",
     "GPU",
     "NPU",
     # "HETERO:CPU,GPU,NPU",
@@ -62,7 +64,7 @@ DEVICES = [
 # Separate output/KV-growth sweep. This is NOT needed to answer where
 # the input/prefill bottleneck occurs, but it is useful for studying
 # KV-cache growth during decode and possible memory pressure.
-RUN_OUTPUT_SWEEP = True
+RUN_OUTPUT_SWEEP = False
 OUTPUT_SWEEP_INPUT_TOKENS = 1024
 
 OUTPUT_SWEEPS = {
@@ -80,14 +82,15 @@ OUTPUT_SWEEPS = {
     ],
 }
 
-RESULTS_CSV = BASE_DIR / "results" / "bottleneck_benchmark.csv"
+# RESULTS_CSV = BASE_DIR / "results" / "bottleneck_benchmark.csv"
+RESULTS_CSV = BASE_DIR / "results" / "bottleneck_benchmark_cpu.csv"
 
 # Each experiment gets its own stdout/stderr log.
 LOG_ROOT = BASE_DIR / "results" / "bottleneck_logs"
 
 # A single run that exceeds this wall time is treated as hung.
 # Increase if you deliberately want >4h per run.
-TIMEOUT_SECONDS = 4 * 60 * 60
+TIMEOUT_SECONDS = None  # no timeout; let the OS kill it if it hangs
 
 CONTINUE_ON_ERROR = True
 DELAY_BETWEEN_RUNS = 5
@@ -269,17 +272,17 @@ def run_one(exp, run_id, index, total, log_dir, runner_log, failures_csv):
                 command,
                 stdout=log,
                 stderr=subprocess.STDOUT,
-                timeout=TIMEOUT_SECONDS,
+                # timeout=TIMEOUT_SECONDS,
                 check=False,
             )
-        except subprocess.TimeoutExpired:
-            elapsed = time.time() - start
-            reason = f"TIMEOUT after {elapsed/3600:.2f} h"
-            append_runner_log(runner_log, f"  -> {reason}")
-            append_runner_failure(
-                failures_csv, exp, reason, "TIMEOUT", log_file
-            )
-            return False
+        # except subprocess.TimeoutExpired:
+        #     elapsed = time.time() - start
+        #     reason = f"TIMEOUT after {elapsed/3600:.2f} h"
+        #     append_runner_log(runner_log, f"  -> {reason}")
+        #     append_runner_failure(
+        #         failures_csv, exp, reason, "TIMEOUT", log_file
+        #     )
+        #     return False
         except KeyboardInterrupt:
             append_runner_log(
                 runner_log,
@@ -346,9 +349,9 @@ def main():
     print("\nExperiment A: INPUT SCALING")
     print(f"  Output fixed at {INPUT_SWEEP_OUTPUT_TOKENS} tokens.")
     print("  This is the primary bottleneck-localization experiment.")
-    print("\nExperiment B: OUTPUT SCALING")
-    print(f"  Input fixed at {OUTPUT_SWEEP_INPUT_TOKENS} tokens.")
-    print("  This studies decode/KV-cache growth and memory pressure.")
+    # print("\nExperiment B: OUTPUT SCALING")
+    # print(f"  Input fixed at {OUTPUT_SWEEP_INPUT_TOKENS} tokens.")
+    # print("  This studies decode/KV-cache growth and memory pressure.")
     print(f"\nPer-run logs: {log_dir}")
     print(f"CSV:          {RESULTS_CSV}")
 
