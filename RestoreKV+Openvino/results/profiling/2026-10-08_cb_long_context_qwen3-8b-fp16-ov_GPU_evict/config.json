@@ -1,0 +1,17 @@
+{
+  "script": "profiling/02_cb_long_context.py",
+  "model": "../models/qwen3-8b-fp16-ov",
+  "device": "GPU",
+  "evict": true,
+  "budget": 2048,
+  "start_size": 32,
+  "recent_size": 128,
+  "aggregation": "NORM_SUM",
+  "chunk": 32768,
+  "cache_gb": 6,
+  "new_tokens": 32,
+  "kv": "f16",
+  "openvino": "2026.4.1",
+  "openvino_genai": "2026.4.1.0",
+  "note": "single-chunk prefill (multi-chunk crashes); 16K OOM, 32K followed the OOM; recovered from log"
+}

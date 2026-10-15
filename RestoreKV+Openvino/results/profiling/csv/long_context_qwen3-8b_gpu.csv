@@ -1,0 +1,11 @@
+path,model,device,eviction,budget_tokens,prefill_chunk,context_tokens,status,ttft_s,tpot_ms,decode_tok_s,prefill_tok_s,error,run
+ContinuousBatching (PagedAttention),qwen3-8b-fp16-ov,GPU,off,,2048,4096,ok,11.23,209.5,4.77,365.0,,2026-10-08_cb_long_context_qwen3-8b-fp16-ov_GPU_noevict
+ContinuousBatching (PagedAttention),qwen3-8b-fp16-ov,GPU,off,,2048,16384,ok,45.01,243.6,4.1,364.0,,2026-10-08_cb_long_context_qwen3-8b-fp16-ov_GPU_noevict
+ContinuousBatching (PagedAttention),qwen3-8b-fp16-ov,GPU,off,,2048,32768,ok,119.62,268.7,3.72,274.0,,2026-10-08_cb_long_context_qwen3-8b-fp16-ov_GPU_noevict
+ContinuousBatching (PagedAttention),qwen3-8b-fp16-ov,GPU,on,2048,32768,4096,ok,14.99,242.9,4.12,273.0,,2026-10-08_cb_long_context_qwen3-8b-fp16-ov_GPU_evict
+ContinuousBatching (PagedAttention),qwen3-8b-fp16-ov,GPU,on,2048,32768,16384,FAILED,,,,,GPU out of memory (CL_OUT_OF_RESOURCES),2026-10-08_cb_long_context_qwen3-8b-fp16-ov_GPU_evict
+ContinuousBatching (PagedAttention),qwen3-8b-fp16-ov,GPU,on,2048,32768,32768,FAILED,,,,,GPU out of memory (CL_OUT_OF_RESOURCES),2026-10-08_cb_long_context_qwen3-8b-fp16-ov_GPU_evict
+stateful IR (raw runtime),qwen3-8b-fp16-ov,GPU,off,,2048,4096,ok,7.77,202.2,4.94,527.0,,2026-10-08_long_context_scaling_qwen3-8b-fp16-ov_GPU
+stateful IR (raw runtime),qwen3-8b-fp16-ov,GPU,off,,2048,8192,ok,19.48,213.8,4.68,421.0,,2026-10-08_long_context_scaling_qwen3-8b-fp16-ov_GPU
+stateful IR (raw runtime),qwen3-8b-fp16-ov,GPU,off,,2048,16384,ok,62.59,297.0,3.37,262.0,,2026-10-08_long_context_scaling_qwen3-8b-fp16-ov_GPU
+stateful IR (raw runtime),qwen3-8b-fp16-ov,GPU,off,,2048,30720,FAILED,,,,,GPU out of memory (CL_OUT_OF_RESOURCES),2026-10-08_long_context_scaling_qwen3-8b-fp16-ov_GPU

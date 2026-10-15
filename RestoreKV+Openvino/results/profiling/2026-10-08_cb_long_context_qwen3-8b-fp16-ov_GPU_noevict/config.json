@@ -1,0 +1,1 @@
+{"model":"../models/qwen3-8b-fp16-ov","device":"GPU","chunk":2048,"cache_gb":6,"new_tokens":32,"kv":"f16","openvino":"2026.4.1","openvino_genai":"2026.4.1.0","note":"recovered from log; process aborted later in the evict=1 phase (two pipelines resident)"}

@@ -1,0 +1,25 @@
+[
+  {
+    "evict": true,
+    "budget": 2048,
+    "context": 4096,
+    "wall_s": 22.5314969769679,
+    "ttft_ms": 14991.18359375,
+    "tpot_ms": 242.93421936035156,
+    "decode_throughput_tok_s": 4.116340637207031,
+    "prefill_tok_s": 273.2272588341637,
+    "host_rss_mb": 87
+  },
+  {
+    "evict": true,
+    "context": 16384,
+    "error": "RuntimeError: Exception from src/inference/src/cpp/infer_request.cpp:224:\nException from src/plugins/intel_gpu/src/runtime/ocl/ocl_common.hpp:62:\n[GPU] CL_OUT_OF_RESOURCES exception.\n\tDue to a driver bug, any subsequent OpenCL API call may cause the application to hang, so the GPU plugin may be unable to finish c",
+    "budget": 2048
+  },
+  {
+    "evict": true,
+    "context": 32768,
+    "error": "RuntimeError: Exception from src/inference/src/cpp/infer_request.cpp:224:\nException from src/plugins/intel_gpu/src/runtime/ocl/ocl_common.hpp:62:\n[GPU] CL_OUT_OF_RESOURCES exception.\n\tDue to a driver bug, any subsequent OpenCL API call may cause the application to hang, so the GPU plugin may be unable to finish c",
+    "budget": 2048
+  }
+]

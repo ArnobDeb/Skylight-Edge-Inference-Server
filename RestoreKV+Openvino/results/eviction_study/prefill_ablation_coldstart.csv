@@ -1,0 +1,6 @@
+tag,model,edits,asf,tokens,chunk,compile_s,prefill_s,last_logit_argmax
+,qwen3-8b-fp16-ov,none,0.0,4096,2048,32.8,43.65,13
+,qwen3-8b-fp16-ov,embeds,0.0,4096,2048,44.8,18.84,13
+,qwen3-8b-fp16-ov,embeds+slice,0.0,4096,2048,51.2,25.61,13
+,qwen3-8b-fp16-ov,embeds+qout+slice,0.0,4096,2048,46.4,55.62,13
+,qwen3-8b-fp16-ov,embeds+mask+qout+slice,0.0,4096,2048,59.6,44.9,13

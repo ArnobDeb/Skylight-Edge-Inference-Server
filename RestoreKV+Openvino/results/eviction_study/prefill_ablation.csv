@@ -1,0 +1,17 @@
+tag,model,edits,asf,tokens,chunk,compile_s,first_prefill_s,prefill_s,last_logit_argmax
+,qwen3-8b-fp16-ov,none,0.0,4096,2048,65.8,24.83,11.34,13
+,qwen3-8b-fp16-ov,embeds,0.0,4096,2048,53.6,14.45,11.89,13
+,qwen3-8b-fp16-ov,embeds+slice,0.0,4096,2048,50.8,26.05,18.84,13
+,qwen3-8b-fp16-ov,embeds+qout+slice,0.0,4096,2048,43.9,27.56,13.33,13
+,qwen3-8b-fp16-ov,embeds+mask+qout+slice,0.0,4096,2048,37.8,38.76,14.96,13
+,qwen3-8b-fp16-ov,embeds+lora+mask+qout+slice,0.0,4096,2048,63.1,26.55,13.8,13
+,qwen3-8b-fp16-ov,embeds+lora+mask+qout+slice,8.0,4096,2048,42.5,43.39,22.91,13
+,qwen3-8b-fp16-ov,embeds+slice,8.0,4096,2048,49.6,57.41,11.87,13
+int8_16k,qwen3-8b-int8-ov,embeds+slice,0.0,16384,2048,10.6,61.8,56.66,13
+int8_16k,qwen3-8b-int8-ov,embeds+lora+mask+qout+slice,8.0,16384,2048,12.6,63.9,63.89,13
+int8_16k,qwen3-8b-int8-ov,embeds+lora+mask+qout+slice,0.0,16384,2048,11.5,61.68,58.53,13
+int8_16k,qwen3-8b-int8-ov,embeds+qout+slice,0.0,16384,2048,7.1,50.96,47.2,13
+int8_16k,qwen3-8b-int8-ov,embeds+mask+slice,0.0,16384,2048,6.4,50.77,49.99,13
+int8_32k,qwen3-8b-int8-ov,embeds+slice,0.0,32612,2048,4.9,190.32,180.45,576
+int8_32k,qwen3-8b-int8-ov,embeds+lora+mask+qout+slice,8.0,32612,2048,6.6,203.74,200.71,576
+int8_32k,qwen3-8b-int8-ov,embeds+slice,0.0,32612,1024,5.3,180.22,180.97,576

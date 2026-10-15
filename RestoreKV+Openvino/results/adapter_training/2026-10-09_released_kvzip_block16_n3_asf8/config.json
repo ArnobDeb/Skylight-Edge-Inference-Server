@@ -1,0 +1,23 @@
+{
+  "model": "/home/semix/apdesai_openvino_intel_mtp/models/qwen3-8b-fp16-ov",
+  "device": "GPU",
+  "ckpt": "artifacts/hf/restorekv/qwen3-8b_restorekv.npz",
+  "seq_len": "4096",
+  "tasks": "",
+  "n_per_task": "3",
+  "budgets": "0.05,0.10,0.25",
+  "methods": "ov",
+  "no_restore": "False",
+  "ov_start": "32",
+  "ov_recent": "32",
+  "ov_window": "8",
+  "ov_block": "16",
+  "max_batch": "4",
+  "max_new_tokens": "0",
+  "mem_floor_gb": "1.5",
+  "act_scale": "8.0",
+  "out": "released_kvzip_block16_n3_asf8",
+  "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+  "prompt_prefix": "<|im_start|>user\n",
+  "question_suffix": "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+}

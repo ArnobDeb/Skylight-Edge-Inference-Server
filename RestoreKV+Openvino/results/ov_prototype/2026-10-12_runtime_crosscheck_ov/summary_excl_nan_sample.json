@@ -1,0 +1,44 @@
+{
+  "runtime_replica@0.05": {
+    "layer_rows": 432,
+    "identical_layers": 0.875,
+    "mean_jaccard": 0.9989,
+    "blocks_chosen_differently_pct": 0.06,
+    "mean_spearman": 0.9984
+  },
+  "runtime_replica@0.1": {
+    "layer_rows": 432,
+    "identical_layers": 0.817,
+    "mean_jaccard": 0.9982,
+    "blocks_chosen_differently_pct": 0.09,
+    "mean_spearman": 0.9984
+  },
+  "runtime_replica@0.25": {
+    "layer_rows": 432,
+    "identical_layers": 0.678,
+    "mean_jaccard": 0.9944,
+    "blocks_chosen_differently_pct": 0.28,
+    "mean_spearman": 0.9984
+  },
+  "evaluator@0.05": {
+    "layer_rows": 432,
+    "identical_layers": 0.576,
+    "mean_jaccard": 0.9952,
+    "blocks_chosen_differently_pct": 0.24,
+    "mean_spearman": 0.9858
+  },
+  "evaluator@0.1": {
+    "layer_rows": 432,
+    "identical_layers": 0.331,
+    "mean_jaccard": 0.9888,
+    "blocks_chosen_differently_pct": 0.57,
+    "mean_spearman": 0.9858
+  },
+  "evaluator@0.25": {
+    "layer_rows": 432,
+    "identical_layers": 0.067,
+    "mean_jaccard": 0.9593,
+    "blocks_chosen_differently_pct": 2.09,
+    "mean_spearman": 0.9858
+  }
+}

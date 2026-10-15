@@ -1,0 +1,7 @@
+{
+  "model": "/home/semix/apdesai_openvino_intel_mtp/models/qwen3-8b-fp16-ov",
+  "ckpt": "/home/semix/apdesai_openvino_intel_mtp/RestoreKV+Openvino/artifacts/hf/restorekv/qwen3-8b_restorekv.npz",
+  "device": "GPU",
+  "ctx": 1024,
+  "kv": "f16"
+}

@@ -1,0 +1,6 @@
+model,prompt_tokens,prefill_chunk,n_chunks,eviction,snapkv_window,status,ttft_s,tpot_ms,error,run
+qwen3-4b-fp16-ov,1900,2048,1,on,8,ok,2.76,103.9,,2026-10-08_gpu_eviction_diag_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,2100,2048,2,on,8,ok,3.11,99.8,,2026-10-08_gpu_eviction_diag_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,1024,256,4,on,8,ok,2.11,97.6,,2026-10-08_gpu_eviction_diag_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,4096,2048,2,on,8,FAILED,,,"GPU job failed, error -14 (host RAM exhausted)",2026-10-08_gpu_eviction_diag_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,4096,2048,2,on,0,FAILED,,,stopped manually: host OOM killer fired during this case (kernel log 07:56-07:57),2026-10-08_gpu_eviction_diag_qwen3-4b-fp16-ov

@@ -1,0 +1,20 @@
+{
+  "prompt_tokens": 1592,
+  "n_decode": 8,
+  "A_roundtrip_max_abs_logit_diff": 0.0,
+  "B_dropped_tokens": 748,
+  "B_kept_tokens": 844,
+  "B_compaction_vs_mask_max_abs_logit_diff": 0.043895721435546875,
+  "B_compaction_vs_mask_argmax_agreement": 1.0,
+  "info_evicted_vs_fullcache_argmax_agreement": 0.875,
+  "greedy_tokens": [
+    5264,
+    53,
+    47975,
+    9316,
+    15469,
+    5707,
+    264,
+    6733
+  ]
+}

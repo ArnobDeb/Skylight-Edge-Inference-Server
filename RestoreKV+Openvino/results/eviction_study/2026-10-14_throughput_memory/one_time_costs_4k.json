@@ -1,0 +1,11 @@
+{
+  "context": "4k",
+  "context_tokens": 4448,
+  "model": "qwen3-8b-fp16-ov",
+  "weights_gpu_mem_gb": 14.23,
+  "prefill_s": 48.8,
+  "score_openvino_h2o_s": 6.33,
+  "score_and_select_adaptive_rkv_s": 4.34,
+  "score_kvzip_s": 85.89,
+  "restore_pass_s": 0.342
+}

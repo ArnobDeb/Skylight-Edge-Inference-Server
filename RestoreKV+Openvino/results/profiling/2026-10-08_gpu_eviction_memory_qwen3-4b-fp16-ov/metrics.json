@@ -1,0 +1,71 @@
+[
+  {
+    "prompt": 2100,
+    "chunk": 2048,
+    "evict": true,
+    "cache_gb": 2,
+    "ok": true,
+    "ttft_ms": 5695.4,
+    "gpu_mem_after_load_gb": 7.73,
+    "gpu_mem_peak_gb": 10.94
+  },
+  {
+    "prompt": 3072,
+    "chunk": 2048,
+    "evict": false,
+    "cache_gb": 2,
+    "ok": true,
+    "ttft_ms": 4401.6,
+    "gpu_mem_after_load_gb": 7.82,
+    "gpu_mem_peak_gb": 9.97
+  },
+  {
+    "prompt": 3072,
+    "chunk": 2048,
+    "evict": true,
+    "cache_gb": 2,
+    "ok": true,
+    "ttft_ms": 9267.8,
+    "gpu_mem_after_load_gb": 7.85,
+    "gpu_mem_peak_gb": 17.51
+  },
+  {
+    "prompt": 8192,
+    "chunk": 8192,
+    "evict": false,
+    "cache_gb": 2,
+    "ok": true,
+    "ttft_ms": 7370.8623046875,
+    "killed_by_watchdog": null,
+    "gpu_mem_after_load_gb": 7.82,
+    "gpu_mem_peak_gb": 10.39,
+    "baseline_avail_gb": 17.44,
+    "min_avail_gb": 11.49
+  },
+  {
+    "prompt": 8192,
+    "chunk": 8192,
+    "evict": true,
+    "cache_gb": 2,
+    "ok": true,
+    "ttft_ms": 21620.712890625,
+    "killed_by_watchdog": null,
+    "gpu_mem_after_load_gb": 7.79,
+    "gpu_mem_peak_gb": 12.86,
+    "baseline_avail_gb": 19.52,
+    "min_avail_gb": 13.5
+  },
+  {
+    "prompt": 8192,
+    "chunk": 64,
+    "evict": true,
+    "cache_gb": 2,
+    "ok": true,
+    "ttft_ms": 69442.25,
+    "killed_by_watchdog": null,
+    "gpu_mem_after_load_gb": 7.7,
+    "gpu_mem_peak_gb": 13.06,
+    "baseline_avail_gb": 24.26,
+    "min_avail_gb": 16.33
+  }
+]

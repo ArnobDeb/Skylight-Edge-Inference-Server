@@ -1,0 +1,9 @@
+{
+  "context": "32k",
+  "context_tokens": 32569,
+  "model": "qwen3-8b-int8-ov",
+  "weights_gpu_mem_gb": 7.18,
+  "prefill_s": 816.95,
+  "score_openvino_h2o_s": 14.67,
+  "restore_pass_s": 1.939
+}

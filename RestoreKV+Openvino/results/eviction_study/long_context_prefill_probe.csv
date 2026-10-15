@@ -1,0 +1,3 @@
+length,chunk,kv_precision,status,tokens,prefill_s,min_mem_available_gb
+32768,1024,f16,ok,32612,981.4,10.3
+32768,2048,f16,ok,32612,791.9,7.2

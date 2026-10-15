@@ -1,0 +1,18 @@
+{
+  "prompt_tokens": 46,
+  "max_abs_logit_diff": 0.0,
+  "mean_abs_logit_diff": 0.0,
+  "argmax_agreement": 1.0,
+  "ref_ttft_s": 0.27461193304043263,
+  "embeds_ttft_s": 0.30251943599432707,
+  "greedy_tokens": [
+    576,
+    3245,
+    2989,
+    10010,
+    525,
+    3637,
+    12770,
+    13
+  ]
+}

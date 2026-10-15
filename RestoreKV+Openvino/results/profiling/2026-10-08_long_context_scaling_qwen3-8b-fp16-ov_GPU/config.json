@@ -1,0 +1,13 @@
+{
+  "model": "/home/semix/apdesai_openvino_intel_mtp/models/qwen3-8b-fp16-ov",
+  "device": "GPU",
+  "max_len": 65536,
+  "chunk": 2048,
+  "kv_precision": "f16",
+  "checkpoints": "4096,8192,16384,32768,65536",
+  "n_decode": 8,
+  "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+  "compile_config": {
+    "KV_CACHE_PRECISION": "f16"
+  }
+}

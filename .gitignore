@@ -1,33 +1,18 @@
 # Python
 __pycache__/
 *.py[cod]
-*.so
 *.egg-info/
 .venv/
 venv/
 .env
-
-# Jupyter / notebooks
-.ipynb_checkpoints/
-
-# Local development
-.DS_Store
 *.log
 
-# OS/editor junk
-.vscode/
-.idea/
-
-# Project-specific exclusions
-generation_image_fixed.py
+# models live next to the code (downloaded by openvino_benchmarking/download_model.py)
 models/
-models
 
-# Generated output folders
-results/*.csv
-results/*.md
-profiling/__pycache__/
-
-# Large local runtime caches
-*.tmp
-*.bak
+# RestoreKV+Openvino: generated data, local builds and environments
+RestoreKV+Openvino/artifacts/*
+!RestoreKV+Openvino/artifacts/adapters/
+RestoreKV+Openvino/build/
+RestoreKV+Openvino/env/venv-*/
+RestoreKV+Openvino/env/nltk_data/

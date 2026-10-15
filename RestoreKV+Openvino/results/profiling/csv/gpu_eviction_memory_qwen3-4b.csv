@@ -1,0 +1,7 @@
+model,prompt_tokens,prefill_chunk,eviction,status,ttft_s,gpu_mem_after_load_gb,gpu_mem_peak_gb,peak_minus_noevict_same_prompt_gb,predicted_mixed_stage_extra_gb (2304*chunk*ctx),kv_cache_gb,run
+qwen3-4b-fp16-ov,2100,2048,on,ok,5.7,7.73,10.94,,0.23,2,2026-10-08_gpu_eviction_memory_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,3072,2048,off,ok,4.4,7.82,9.97,,,2,2026-10-08_gpu_eviction_memory_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,3072,2048,on,ok,9.27,7.85,17.51,7.54,6.75,2,2026-10-08_gpu_eviction_memory_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,8192,8192,off,ok,7.37,7.82,10.39,,,2,2026-10-08_gpu_eviction_memory_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,8192,8192,on,ok,21.62,7.79,12.86,2.47,0.0,2,2026-10-08_gpu_eviction_memory_qwen3-4b-fp16-ov
+qwen3-4b-fp16-ov,8192,64,on,ok,69.44,7.7,13.06,2.67,1.12,2,2026-10-08_gpu_eviction_memory_qwen3-4b-fp16-ov

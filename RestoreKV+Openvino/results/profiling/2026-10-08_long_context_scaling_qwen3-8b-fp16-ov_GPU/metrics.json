@@ -1,0 +1,109 @@
+{
+  "checkpoints": [
+    {
+      "context": 4096,
+      "prefill_cum_s": 7.772535312047694,
+      "prefill_avg_tok_s": 526.9837749918049,
+      "last_chunk_tok_s": 533.625024720774,
+      "tpot_ms": 202.24115200107917,
+      "host_rss_mb": 245
+    },
+    {
+      "context": 8192,
+      "prefill_cum_s": 19.47808413306484,
+      "prefill_avg_tok_s": 420.57524467171527,
+      "last_chunk_tok_s": 319.1437750501066,
+      "tpot_ms": 213.7732130358927,
+      "host_rss_mb": 183
+    },
+    {
+      "context": 16384,
+      "prefill_cum_s": 62.58566936798161,
+      "prefill_avg_tok_s": 261.78516848110826,
+      "last_chunk_tok_s": 137.4669818834264,
+      "tpot_ms": 296.9573619775474,
+      "host_rss_mb": 70
+    },
+    {
+      "stopped_at": 30720,
+      "error": "RuntimeError: Exception from src/inference/src/cpp/infer_request.cpp:224:\nException from src/plugins/intel_gpu/src/runtime/ocl/ocl_common.hpp:62:\n[GPU] CL_OUT_OF_RESOURCES exception.\n\tDue to a driver bug, any subsequent OpenCL API call may cause the application to hang, so the GPU plugin may be unable to finish c"
+    }
+  ],
+  "chunks": [
+    {
+      "context": 2048,
+      "chunk_s": 3.9346343420329504,
+      "chunk_tok_s": 520.5058010401641
+    },
+    {
+      "context": 4096,
+      "chunk_s": 3.8379009700147435,
+      "chunk_tok_s": 533.625024720774
+    },
+    {
+      "context": 6144,
+      "chunk_s": 5.288378379016649,
+      "chunk_tok_s": 387.2642714307475
+    },
+    {
+      "context": 8192,
+      "chunk_s": 6.417170442000497,
+      "chunk_tok_s": 319.1437750501066
+    },
+    {
+      "context": 10240,
+      "chunk_s": 7.461766067950521,
+      "chunk_tok_s": 274.4658545108359
+    },
+    {
+      "context": 12288,
+      "chunk_s": 9.24661443498917,
+      "chunk_tok_s": 221.486471010446
+    },
+    {
+      "context": 14336,
+      "chunk_s": 11.501081764989067,
+      "chunk_tok_s": 178.07020607699738
+    },
+    {
+      "context": 16384,
+      "chunk_s": 14.898122966988012,
+      "chunk_tok_s": 137.4669818834264
+    },
+    {
+      "context": 18432,
+      "chunk_s": 19.444403229979798,
+      "chunk_tok_s": 105.32593753468092
+    },
+    {
+      "context": 20480,
+      "chunk_s": 18.744400804978795,
+      "chunk_tok_s": 109.25929408509128
+    },
+    {
+      "context": 22528,
+      "chunk_s": 27.03290290798759,
+      "chunk_tok_s": 75.75952930289495
+    },
+    {
+      "context": 24576,
+      "chunk_s": 22.095796287991107,
+      "chunk_tok_s": 92.68731360965127
+    },
+    {
+      "context": 26624,
+      "chunk_s": 22.23546213802183,
+      "chunk_tok_s": 92.1051241160396
+    },
+    {
+      "context": 28672,
+      "chunk_s": 26.360852812998928,
+      "chunk_tok_s": 77.69096146199416
+    },
+    {
+      "context": 30720,
+      "chunk_s": 27.316711827006657,
+      "chunk_tok_s": 74.972420288713
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "model": "/home/semix/apdesai_openvino_intel_mtp/models/qwen3-8b-fp16-ov",
+  "device": "GPU",
+  "ckpt": "/home/semix/apdesai_openvino_intel_mtp/RestoreKV+Openvino/artifacts/hf/restorekv/qwen3-8b_restorekv.npz",
+  "seq_len": "4096",
+  "tasks": "niah_single_1",
+  "n_per_task": "1",
+  "budgets": "0.1",
+  "methods": "full,kvzip,kvzip+restore,ov,ov+restore",
+  "max_new_tokens": "0",
+  "out": "smoke",
+  "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+  "prompt_prefix": "<|im_start|>user\n",
+  "question_suffix": "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+}

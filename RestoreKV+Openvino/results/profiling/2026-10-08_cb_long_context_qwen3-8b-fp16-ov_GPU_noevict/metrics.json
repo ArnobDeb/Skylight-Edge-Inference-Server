@@ -1,0 +1,35 @@
+[
+  {
+    "evict": false,
+    "budget": null,
+    "context": 4096,
+    "wall_s": 17.73057107999921,
+    "ttft_ms": 11232.8798828125,
+    "tpot_ms": 209.4964599609375,
+    "decode_throughput_tok_s": 4.773350238800049,
+    "prefill_tok_s": 364.643799518173,
+    "host_rss_mb": 307
+  },
+  {
+    "evict": false,
+    "budget": null,
+    "context": 16384,
+    "wall_s": 52.56759138399502,
+    "ttft_ms": 45012.3203125,
+    "tpot_ms": 243.6291961669922,
+    "decode_throughput_tok_s": 4.104598522186279,
+    "prefill_tok_s": 363.98923419751225,
+    "host_rss_mb": 297
+  },
+  {
+    "evict": false,
+    "budget": null,
+    "context": 32768,
+    "wall_s": 127.95123620901722,
+    "ttft_ms": 119618.234375,
+    "tpot_ms": 268.7379150390625,
+    "decode_throughput_tok_s": 3.721097469329834,
+    "prefill_tok_s": 273.93816813307234,
+    "host_rss_mb": 297
+  }
+]

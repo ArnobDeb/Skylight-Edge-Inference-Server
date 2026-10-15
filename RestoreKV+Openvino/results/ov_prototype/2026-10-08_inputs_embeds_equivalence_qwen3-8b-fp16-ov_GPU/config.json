@@ -1,0 +1,9 @@
+{
+  "model": "../models/qwen3-8b-fp16-ov",
+  "device": "GPU",
+  "compile_config": {
+    "KV_CACHE_PRECISION": "f16"
+  },
+  "n_decode": 8,
+  "openvino": "2026.4.1-22982-e213a147257-releases/2026/4"
+}

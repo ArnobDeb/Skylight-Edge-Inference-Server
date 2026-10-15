@@ -1,0 +1,45 @@
+[
+  {
+    "prompt": 1900,
+    "chunk": 2048,
+    "evict": true,
+    "snapkv": 8,
+    "ok": true,
+    "ttft_ms": 2762.03369140625,
+    "tpot_ms": 103.85000610351562
+  },
+  {
+    "prompt": 2100,
+    "chunk": 2048,
+    "evict": true,
+    "snapkv": 8,
+    "ok": true,
+    "ttft_ms": 3112.49658203125,
+    "tpot_ms": 99.81610107421875
+  },
+  {
+    "prompt": 1024,
+    "chunk": 256,
+    "evict": true,
+    "snapkv": 8,
+    "ok": true,
+    "ttft_ms": 2110.606201171875,
+    "tpot_ms": 97.62184143066406
+  },
+  {
+    "prompt": 4096,
+    "chunk": 2048,
+    "evict": true,
+    "snapkv": 8,
+    "ok": false,
+    "error": "Exception from src/inference/src/cpp/infer_request.cpp:224: Exception from src/plugins/intel_gpu/src/runtime/ocl/ocl_memory.cpp:593: [GPU] clWaitForEvents, error code: -14 CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST"
+  },
+  {
+    "prompt": 4096,
+    "chunk": 2048,
+    "evict": true,
+    "snapkv": 0,
+    "ok": false,
+    "error": "stopped manually: host OOM killer fired during this case (kernel log 07:56-07:57)"
+  }
+]

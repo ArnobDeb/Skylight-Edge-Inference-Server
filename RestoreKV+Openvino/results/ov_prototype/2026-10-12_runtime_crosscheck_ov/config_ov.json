@@ -1,0 +1,13 @@
+{
+  "phase": "ov",
+  "mode": "ov",
+  "model": "/home/semix/apdesai_openvino_intel_mtp/models/qwen3-8b-fp16-ov",
+  "device": "GPU",
+  "n_per_task": "1",
+  "n_samples": "13",
+  "budgets": "[0.05, 0.1, 0.25]",
+  "block": "16",
+  "start": "32",
+  "recent": "32",
+  "window": "8"
+}
