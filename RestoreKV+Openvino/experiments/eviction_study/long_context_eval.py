@@ -211,6 +211,7 @@ def main():
         if row["context"] != ctx_key:                       # new context: prefill, score, restore once
             ctx_ids = encode(prefix_text + row["context"])
             T = len(ctx_ids)
+            snap = None                          # drop the previous document's 4.8 GB host snapshot before prefill
             eng.fresh_request()                  # free the previous document's GPU buffers (see engine)
             t = time.perf_counter()
             pre = eng.prefill(ctx_ids, chunk=args.chunk, q_rows_last=args.ov_window)

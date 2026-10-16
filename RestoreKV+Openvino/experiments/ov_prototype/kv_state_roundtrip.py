@@ -48,7 +48,7 @@ def main():
     args = ap.parse_args()
 
     core = ov.Core()
-    text = (ROOT / "openvino.genai/README.md").read_text()[:6000]
+    text = (ROOT / "build/openvino.genai/README.md").read_text()[:6000]
     prompt = text + "\n\nQuestion: In one sentence, what does OpenVINO GenAI provide?\nAnswer:"
     ids = load_tokenizer(core, args.model)(prompt)[0]
     T = len(ids)

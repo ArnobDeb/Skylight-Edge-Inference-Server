@@ -51,7 +51,7 @@ Memory saved (KV cache per sequence, Qwen3-8B f16 = 144 KiB per token; identical
 Decode speed with the cache physically cut to the budget: at 32K, one sequence decodes at 3.04 tokens/s with the
 full cache and 5.6–6.6 tokens/s after eviction; eight evicted sequences together reach 38–40 tokens/s (the full
 32K cache fits only one). RestoreKV decodes exactly as fast as plain eviction; its only cost is the restore pass:
-0.34 s per 4K document, 1.94 s per 32K document (under 1% of the prefill).
+0.34 s per 4K document, 1.94 s per 32K document (about 1.5% of reading a 4K document and 1% of a 32K one).
 
 Details and all tables: [docs/RESULTS.md](docs/RESULTS.md). How the code drives OpenVINO: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

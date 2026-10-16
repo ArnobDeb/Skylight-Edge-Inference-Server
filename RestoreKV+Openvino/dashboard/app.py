@@ -190,6 +190,8 @@ with tabs[1]:
                 "score_kvzip_s": "KVzip scoring", "restore_pass_s": "RestoreKV restore pass"}
         st.markdown("**One-time cost per document (seconds)**")
         st.dataframe(cdf[[k for k in cols if k in cdf]].rename(columns=cols).round(2), width="stretch")
+        st.caption("Prefill here is the first (cold) call of the throughput run. Warm prefill: 4K 22.9 s, 32K 201 s "
+                   "with the RestoreKV graph edits, so the restore pass is about 1.5% (4K) and 1% (32K) of it.")
 
 # 3 --------------------------------------------------------------------------------
 with tabs[2]:

@@ -116,9 +116,20 @@ Decode tokens/s with the cache physically shortened (plain eviction / + RestoreK
 | 5% | 6.58 / 6.31 | 20.7 / 20.0 | 31.8 / 33.2 |
 | 10% | 6.27 / 6.16 | 17.1 | 23.7 |
 
-One-time costs per document: prefill 48.8 s (4K, fp16) / 817 s (32K, INT8, in the long-context evaluator; 180–200 s
-in a fresh process); OpenVINO H2O scoring 6.3 s / 14.7 s; KVzip scoring 85.9 s (4K); RestoreKV restore pass
-**0.34 s / 1.94 s**.
+One-time costs per document:
+
+| | 4K (fp16) | 32K (INT8) |
+|---|---|---|
+| Prefill, warm | 11.3 s unmodified IR, 22.9 s with the RestoreKV graph edits | 180 s unmodified IR, 201 s with the edits |
+| OpenVINO H2O scoring | 6.3 s | 14.7 s |
+| KVzip scoring | 85.9 s | – |
+| **RestoreKV restore pass** | **0.34 s (~1.5% of the prefill)** | **1.94 s (~1% of the prefill)** |
+
+Warm prefill times from `profiling/07_prefill_ablation.py` (compiled model already used once). The throughput run's
+`one_time_costs_*.json` record 48.8 s / 817 s: the 4K value includes GPU kernel compilation on the first call, the
+32K value was slowed by memory pressure in a long-running process. The restore pass is timed once per document
+(`time.perf_counter()` around `restore_pass()`), runs before eviction and is the same for every budget. The paper
+reports 0.03–0.04 s (<0.5%) for 32K on an RTX PRO 6000; the iGPU is a much smaller device.
 
 - At 4K the weights (14 GB) dominate every decode step, so eviction alone gives 5–12% at batch 1; the gain comes
   from fitting more sequences (2.2–2.7× throughput at batch 8).
