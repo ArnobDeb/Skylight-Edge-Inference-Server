@@ -1,0 +1,42 @@
+{
+  "context_tokens": 5127,
+  "plain_ids_exported_vs_original": {
+    "max_abs_diff": 0.11115074157714844,
+    "argmax_equal": true,
+    "top5_overlap": 5
+  },
+  "restore_in_prompt_vs_prototype_restore_pass": {
+    "max_abs_diff": 0.17934417724609375,
+    "argmax_equal": true,
+    "top5_overlap": 5
+  },
+  "restore_vs_no_restore (should differ)": {
+    "max_abs_diff": 5.546133041381836,
+    "argmax_equal": false,
+    "top5_overlap": 5
+  },
+  "restore_kv_layer0_key": {
+    "max_abs_diff": 0.0625,
+    "rel_diff": 0.0003380662528797984
+  },
+  "restore_kv_layer0_value": {
+    "max_abs_diff": 6.103515625e-05,
+    "rel_diff": 0.000430663232691586
+  },
+  "restore_kv_layer17_key": {
+    "max_abs_diff": 0.060546875,
+    "rel_diff": 0.0027777778450399637
+  },
+  "restore_kv_layer17_value": {
+    "max_abs_diff": 0.017333984375,
+    "rel_diff": 0.008082877844572067
+  },
+  "restore_kv_layer35_key": {
+    "max_abs_diff": 0.1328125,
+    "rel_diff": 0.006015569902956486
+  },
+  "restore_kv_layer35_value": {
+    "max_abs_diff": 0.27880859375,
+    "rel_diff": 0.013217592611908913
+  }
+}

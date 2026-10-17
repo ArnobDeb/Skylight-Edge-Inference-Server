@@ -5,6 +5,8 @@
 | `run_ruler4k_layouts.sh` | `results/ov_prototype/*_ruler4k_ladder_n10` |
 | `run_ruler4k_main.sh` | `results/eviction_study/*_ruler130_*` |
 | `run_throughput.sh` | `results/eviction_study/*_throughput_memory` |
+| `run_genai_ruler4k.sh` | `results/genai_integration/*_genai_ruler4k_n10*` (inside OpenVINO GenAI) |
+| `run_genai_throughput.sh` | `results/genai_integration/*_genai_throughput_*` |
 | `run_long_context.sh` | `results/eviction_study/*_loft32k_*`, `*_ruler32k_*` |
 | `long_context/generate_ruler.sh` | RULER-32K data in `artifacts/data/ruler/` |
 | `long_context/build_loft.py` | LOFT-32K prompts in `artifacts/data/loft_qwen/` (download the LOFT datasets first, see the script) |

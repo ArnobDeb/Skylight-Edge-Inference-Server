@@ -158,3 +158,44 @@ also disables the fused attention kernels during prefill (2.9–9.4× slower, `p
 RULER-32K (generated with NVIDIA RULER and the Qwen3 tokenizer) and LOFT-32K (13 text datasets, 10 queries each)
 run with Qwen3-8B INT8 weights; results are written to `results/eviction_study/*_32k_*` and shown in the dashboard.
 64K contexts do not fit in the laptop's 30 GB of shared memory.
+
+## 7. Inside OpenVINO GenAI (C++ pipeline)
+
+RestoreKV in `ContinuousBatchingPipeline` (patched GenAI 2026.4.1, `experiments/genai_integration/`): real paged
+cache, real block eviction, OpenVINO's own scoring, the 8 restore tokens protected. Before the runs, the exported
+model was checked against the prototype on a 5,127-token sample: with plain token ids it gives the same output as the
+original model, and with the restore tokens in the prompt the same restore entries (relative difference <= 1.3%) and
+the same answer as the prototype's restore pass.
+
+RULER-4K, 130 samples, OpenVINO H2O (NORM_SUM, SnapKV window 8, start/recent 32, 16-token blocks), H2O adapter.
+Full cache **93.1** (identical to the prototype).
+
+| Budget | OpenVINO eviction | + RestoreKV | Gain | 95% interval | Better / worse |
+|---|---|---|---|---|---|
+| 2.5% | 10.5 | 10.2 | −0.3 | [−3.3, +2.3] | 9 / 5 |
+| 5% | 49.6 | 53.5 | +4.0 | [+0.9, +7.5] | 18 / 6 |
+| 10% | 67.6 | 72.3 | +4.7 | [+1.5, +8.3] | 21 / 8 |
+| 15% | 75.3 | 81.3 | +6.0 | [+2.1, +10.2] | 18 / 6 |
+| 25% | 80.7 | **89.7** | **+9.1** | [+4.6, +13.9] | 19 / 3 |
+
+GenAI evicts at the first decode step, after the question has been read (its SnapKV window covers the end of the
+question), whereas the paper and the prototype evict before the question. Absolute scores are therefore much higher
+than in §1; compare without vs with RestoreKV within this table.
+
+Speed and memory in the same pipeline (4K input, total decode tokens/s over all sequences):
+
+| Batch | Output tokens | Full cache | Eviction 10% | + RestoreKV |
+|---|---|---|---|---|
+| 1 | 2048 | 4.55 | 4.61 | 4.59 |
+| 4 | 2048 | 13.21 | 15.70 | 15.69 |
+| 8 | 1024 | 19.38 | 23.03 | 23.50 |
+| 8 | 2048 | 20.61 | 27.05 | 26.83 |
+
+- RestoreKV runs at the speed of plain eviction (same tokens/s, TTFT and memory): its 8 tokens are part of the prompt.
+- Eviction adds ~3 s to the first token at 4K (TTFT 7.9 s full, 10.9–11.1 s with eviction, batch 1): on the iGPU,
+  GenAI 2026.4.1 turns off the fused attention kernels during prefill when eviction is on. At 8K: TTFT 16.5 s full,
+  31 s with eviction. At 16K, eviction ran out of memory during the single-chunk prefill (a limitation of the GenAI
+  GPU path, not of RestoreKV); long-context numbers therefore come from the prototype (§4, §6).
+- Process GPU memory is about the same in all configurations, because GenAI reserves its cache pool up front and
+  each prompt must fit whole before the first eviction; after eviction a 4K sequence uses 56 MB of cache instead of
+  0.6–0.9 GB, which is where the speed-up at batch 4–8 comes from.

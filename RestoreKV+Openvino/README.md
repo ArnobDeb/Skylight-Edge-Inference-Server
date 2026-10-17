@@ -53,6 +53,11 @@ full cache and 5.6–6.6 tokens/s after eviction; eight evicted sequences togeth
 32K cache fits only one). RestoreKV decodes exactly as fast as plain eviction; its only cost is the restore pass:
 0.34 s per 4K document, 1.94 s per 32K document (about 1.5% of reading a 4K document and 1% of a 32K one).
 
+**Inside OpenVINO GenAI's own pipeline** (C++ `ContinuousBatchingPipeline`, patched; RULER-4K 130, OpenVINO
+eviction as shipped, which evicts after reading the question): 49.6 → 53.5 at 5%, 67.6 → 72.3 at 10%, 75.3 → 81.3 at
+15%, **80.7 → 89.7 at 25%** (full cache 93.1), at the same decode speed as plain eviction. GenAI change:
+[ArnobDeb/openvino.genai, branch restorekv-2026.4.1](https://github.com/ArnobDeb/openvino.genai/pull/1).
+
 Details and all tables: [docs/RESULTS.md](docs/RESULTS.md). How the code drives OpenVINO: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## How it is implemented
@@ -123,6 +128,7 @@ experiments/
   ov_prototype/          IR checks, RULER evaluator, runtime cross-check against OpenVINO GenAI
   adapter_training/      patches for the RestoreKV training code, port tests, cluster job scripts
   eviction_study/        long-context evaluator, memory and speed benchmark
+  genai_integration/     RestoreKV inside OpenVINO GenAI: model export, RULER and throughput through ContinuousBatchingPipeline
 benchmarks/              launch scripts, long-context data generation (RULER-32K, LOFT-32K), INT8 model export
 profiling/               speed / memory measurements of the OpenVINO pipeline on the iGPU
 results/                 one folder per run (config.json, results.jsonl, summary.csv)

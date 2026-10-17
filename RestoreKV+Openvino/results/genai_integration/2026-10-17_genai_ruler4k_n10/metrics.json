@@ -1,0 +1,14 @@
+{
+  "benchmark": "RULER-4K (simonjegou/ruler, 13 tasks x 10 = 130 samples), Qwen3-8B fp16, Arc iGPU, ContinuousBatchingPipeline (patched GenAI 2026.4.1, restorekv-2026.4.1 @ 22020cd8)",
+  "eviction": "OpenVINO NORM_SUM, SnapKV window 8, start/recent 32, 16-token blocks, one-shot at the first decode step (query-aware)",
+  "adapter": "ovblock_qwen3-8b checkpoint_step5000",
+  "full_cache": 93.1,
+  "paired_gain_ov_to_ovR": {
+    "0.025": {"ov": 10.54, "ovR": 10.23, "gain": -0.31, "ci95": [-3.3, 2.3], "better": 9, "worse": 5},
+    "0.05": {"ov": 49.58, "ovR": 53.53, "gain": 3.95, "ci95": [0.9, 7.5], "better": 18, "worse": 6},
+    "0.10": {"ov": 67.62, "ovR": 72.33, "gain": 4.72, "ci95": [1.5, 8.3], "better": 21, "worse": 8},
+    "0.15": {"ov": 75.31, "ovR": 81.26, "gain": 5.95, "ci95": [2.1, 10.2], "better": 18, "worse": 6},
+    "0.25": {"ov": 80.65, "ovR": 89.71, "gain": 9.05, "ci95": [4.6, 13.9], "better": 19, "worse": 3}
+  },
+  "latency_median_ms": {"full": {"ttft": 7292, "tpot": 233}, "evicted_ov": {"ttft": 10360, "tpot": 225}, "evicted_ovR": {"ttft": 10370, "tpot": 224}}
+}

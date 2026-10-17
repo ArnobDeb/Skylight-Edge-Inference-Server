@@ -44,6 +44,9 @@ From `RestoreKV+Openvino`:
 - RestoreKV recovers part of the accuracy lost to eviction in the same memory budget, for a 0.3–2 s one-time
   restore step: +1.5 to +6.0 points on RULER-4K with OpenVINO's default eviction, and 34.4 → 68.4 at a 5% budget
   with the per-head eviction used in the RestoreKV paper.
+- Integrated into OpenVINO GenAI's C++ serving pipeline (`ContinuousBatchingPipeline`,
+  [fork + diff](https://github.com/ArnobDeb/openvino.genai/pull/1)): with OpenVINO's eviction as shipped, RestoreKV
+  raises RULER-4K from 80.7 to 89.7 at a 25% budget (+4 to +9 points from 5% to 25%) at unchanged decode speed.
 - How much it helps depends on how finely the cache is evicted: OpenVINO drops 16-token blocks for all heads of a
   layer at once, which loses far more than per-head, per-token eviction.
 

@@ -1,0 +1,3 @@
+config,budget,max_cache_size,input_tokens,output_tokens,batch,status,ttft_ms,tpot_ms,genai_throughput_tok_s,wall_s,wall_tok_s,kv_mb_per_seq,peak_gpu_gtt_gb,peak_rss_gb,min_mem_available_gb
+full,,,16384,128,1,ok,40816.0,236.5,4.23,70.85,1.81,2322.0,23.66,1.29,4.98
+full,,,16384,512,1,ok,40053.9,235.1,4.25,160.2,3.2,2376.0,24.11,1.29,4.56
