@@ -116,9 +116,16 @@ def main():
     ap.add_argument("--block", type=int, default=16)
     ap.add_argument("--date", default=str(date.today()))
     ap.add_argument("--mem-floor-gb", type=float, default=1.5)
+    ap.add_argument("--hybrid", action="store_true",
+                    help="question-blind then continuous eviction (patched GenAI, RESTOREKV_QUERY_BLIND=3): the document "
+                         "is evicted once before the request is read, then GenAI keeps evicting during the output. "
+                         "Configs ov / ov+R only; the full-cache reference is the same prompt as in the default run")
     ap.add_argument("--gpu-limit-gb", type=float, default=26.0, help="skip points whose weights + KV exceed this")
     args = ap.parse_args()
     protect(floor_gb=args.mem_floor_gb)
+    if args.hybrid:
+        import os
+        os.environ["RESTOREKV_QUERY_BLIND"] = "3"                   # read when the pipeline is built
 
     import openvino as ov
     import openvino_genai as g
@@ -146,9 +153,17 @@ def main():
     prompts = {"full": np.concatenate([ctx, request]), "ov": np.concatenate([ctx, request]),
                "ov+R": np.concatenate([ctx, restore_ids, request])}
     T = len(prompts["full"])
+    n_forced = 0
+    if args.hybrid:
+        # [document][SEP][request]: the document is prefilled and evicted once, the request is fed as forced tokens;
+        # restore tokens 8 tokens before the document end (inside order), as in the question-blind RULER runs
+        sep_id = np.array([rk["first_token_id"] + rk["num_tokens"]], np.int64)
+        prompts = {"ov": np.concatenate([ctx, sep_id, request]),
+                   "ov+R": np.concatenate([ctx[:-8], restore_ids, ctx[-8:], sep_id, request])}
+        n_forced = len(request)
     max_cache = max(int(args.budget * T) // args.block * args.block, 32 + 32 + args.block)
 
-    out_dir = ROOT / "results/genai_integration" / f"{args.date}_decode_scaling_{args.tag}"
+    out_dir = ROOT / "results/genai_integration" / f"{args.date}_decode_scaling_{args.tag}{'_hybrid' if args.hybrid else ''}"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "config.json").write_text(json.dumps({**{k: str(v) for k, v in vars(args).items()},
                                                       "prompt_tokens": T, "max_cache_size": max_cache,
@@ -218,7 +233,7 @@ def main():
                 continue
             for o in todo:
                 gc = g.GenerationConfig()
-                gc.max_new_tokens = o
+                gc.max_new_tokens = o + n_forced               # the forced request comes back as generated ids
                 gc.ignore_eos = True
                 vm0, rd0, rss0 = vmstat(), proc_read_bytes(), proc_status("VmRSS")
                 with Sampler() as s:
@@ -242,7 +257,7 @@ def main():
                        "min_mem_available_gb": round(s.min_avail, 2)}
                 if res:
                     pm = [r.perf_metrics for r in res]
-                    n_gen = sum(len(r.m_generation_ids[0]) for r in res)
+                    n_gen = sum(len(r.m_generation_ids[0]) - n_forced for r in res)
                     row.update(ttft_ms=round(float(np.mean([p.get_ttft().mean for p in pm])), 1),
                                tpot_ms=round(float(np.mean([p.get_tpot().mean for p in pm])), 1),
                                throughput_tok_s=round(float(np.sum([p.get_throughput().mean for p in pm])), 2),
@@ -250,7 +265,7 @@ def main():
                                inference_duration_ms=round(float(np.mean([p.get_inference_duration().mean for p in pm])), 1),
                                wall_tok_s=round(n_gen / wall, 2))
                     gens.write(json.dumps({"config": c, "output_tokens": o, "batch": b,
-                                           "ids": [int(t) for t in res[0].m_generation_ids[0]]}) + "\n")
+                                           "ids": [int(t) for t in res[0].m_generation_ids[0]][n_forced:]}) + "\n")
                     gens.flush()
                 w.writerow(row)
                 fout.flush()

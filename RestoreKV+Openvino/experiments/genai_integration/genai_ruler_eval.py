@@ -56,6 +56,9 @@ def main():
                     help="question-blind only. inside: restore tokens in the prompt, 8 tokens before the document end "
                          "(one prefill). exact: prototype order - prefill + score the document, restore tokens fed "
                          "afterwards on the full cache (not scored), evict, then the question (RESTOREKV_QUERY_BLIND=2)")
+    ap.add_argument("--then-continuous", action="store_true",
+                    help="question-blind, inside order, then GenAI's continuous eviction once the answer starts "
+                         "(RESTOREKV_QUERY_BLIND=3): the cache stays capped at max_cache_size during the answer")
     ap.add_argument("--out", default="genai_ruler4k")
     ap.add_argument("--max-requests", type=int, default=0, help="stop cleanly after this many requests (0 = all)")
     ap.add_argument("--date", default=str(date.today()))
@@ -64,8 +67,11 @@ def main():
     protect(floor_gb=args.mem_floor_gb)
 
     import os
-    if args.query_blind:
-        os.environ["RESTOREKV_QUERY_BLIND"] = "2" if args.restore_order == "exact" else "1"   # read at construction
+    if args.then_continuous:
+        assert args.query_blind and args.restore_order == "inside", "--then-continuous needs --query-blind, inside order"
+    if args.query_blind:   # read at construction
+        os.environ["RESTOREKV_QUERY_BLIND"] = ("2" if args.restore_order == "exact" else
+                                               "3" if args.then_continuous else "1")
     import openvino as ov
     import openvino_genai as g
     from transformers import AutoTokenizer

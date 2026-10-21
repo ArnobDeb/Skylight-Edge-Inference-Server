@@ -63,6 +63,7 @@ only in **when** the KV cache is compressed:
 |---|---|---|---|
 | **Question-blind** (RestoreKV paper, our prototype) | right after the document, before the question is seen; the question is read on the compressed cache | compress a document once, reuse it for many questions | the paper |
 | **Question-aware** (OpenVINO GenAI default, as shipped) | after the whole prompt, document **and** question, has been read; OpenVINO's scorer looks from the end of the question | one question per document | itself only |
+| **Blind → continuous** (hybrid, new, running) | once after the document, then GenAI keeps evicting while the answer is written | compress once, then generate at length with a capped cache | question-blind |
 
 Question-aware scores are much higher, because the scorer already knows what will be asked. Within each protocol the
 fair comparison is eviction vs eviction + RestoreKV at the same budget.
@@ -73,17 +74,21 @@ RestoreKV in GenAI's `ContinuousBatchingPipeline` (patched, [ArnobDeb/openvino.g
 restorekv-2026.4.1](https://github.com/ArnobDeb/openvino.genai/pull/1)): real paged cache, real block eviction,
 OpenVINO's own scorer, the 8 restore tokens protected. Qwen3-8B, RULER-4K 130 samples, OpenVINO eviction → + RestoreKV:
 
-| Budget | Prototype, question-blind | **GenAI, question-blind** | **GenAI, question-aware** (default) |
-|---|---|---|---|
-| 2.5% | 4.9 → 6.8 | 4.9 → **9.1** | 10.5 → 10.2 |
-| 5% | 15.1 → 16.6 | 17.1 → **22.2** | 49.6 → **53.5** |
-| 10% | 32.7 → 34.8 | 33.9 → **38.2** | 67.6 → **72.3** |
-| 15% | 43.8 → 49.8 | 42.3 → **52.7** | 75.3 → **81.3** |
-| 25% | 61.2 → 64.8 | 60.9 → **67.4** | 80.7 → **89.7** |
+| Budget | Prototype, question-blind | **GenAI, question-blind** (inside order) | GenAI, question-blind (exact order) | **GenAI, question-aware** (default) |
+|---|---|---|---|---|
+| 2.5% | 4.9 → **6.8** | 4.9 → **9.1** | 5.1 → 6.8 | 10.5 → 10.2 |
+| 5% | 15.1 → 16.6 | 17.1 → **22.2** | 18.7 → 16.6 | 49.6 → **53.5** |
+| 10% | 32.7 → **34.8** | 33.9 → **38.2** | 33.2 → 36.1 | 67.6 → **72.3** |
+| 15% | 43.8 → **49.8** | 42.3 → **52.7** | 42.5 → **48.7** | 75.3 → **81.3** |
+| 25% | 61.2 → 64.8 | 60.9 → **67.4** | 61.3 → 64.3 | 80.7 → **89.7** |
+
+Bold: RestoreKV's gain is significant (paired 95% bootstrap interval above 0).
 
 - **Question-blind:** plain eviction in GenAI matches the prototype within 1–2 points (same protocol, different
-  runtime path), and RestoreKV's gain is above sampling noise at all five budgets (+4.2 to +10.4).
-- **Question-aware:** RestoreKV adds +4.0 to +9.1 points from 5% to 25% (above noise), at the same speed and memory.
+  runtime path). With the prototype's exact order, RestoreKV's gains in GenAI match the prototype's too; with the
+  restore tokens inside the document prefill ("inside order") the gain is larger and significant at all five budgets
+  (+4.2 to +10.4).
+- **Question-aware:** RestoreKV adds +3.9 to +9.1 points from 5% to 25% (above noise), at the same speed and memory.
 - Full cache 93.1 in both the prototype and GenAI.
 
 ### Experiment 3: decode scaling in GenAI, three models
@@ -99,7 +104,8 @@ adapter. At 16K output, batch 1:
 | Llama-3.1-8B | 224 / 210 / 208 ms | 4.45 / 4.74 / 4.80 | 2.6 GB → **52 MB** | 7.3 / ~10.5 s |
 
 Batch 8 (total tokens/s): Qwen3-4B at 8K output 25.1 (full) → **56.0** (eviction) / 55.9 (+ RestoreKV); Qwen3-8B
-at 2K output 19.7 → 26.3 / 26.6 (at 8K only the evicted caches fit: 30.5 / 30.1). The full cache's time per token
+at 2K output 19.7 → 26.3 / 26.6 and Llama-3.1-8B 20.2 → 26.9 / 27.5 (at 8K only the evicted caches fit: 30.5 / 30.1
+and 30.6 / 30.6). The full cache's time per token
 grows with the output, the evicted one stays flat; RestoreKV runs at the speed and memory of plain eviction. Details,
 including how close the evicted outputs stay to the full-cache output: [docs/RESULTS.md](docs/RESULTS.md) §8.
 Interactive: `streamlit run dashboard/app_experiment3.py`.

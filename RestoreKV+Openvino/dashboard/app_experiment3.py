@@ -3,8 +3,8 @@
     streamlit run dashboard/app_experiment3.py
 
 3A decode scaling (4K input, 128-16K output; full cache vs OpenVINO eviction vs eviction + RestoreKV), 3B agreement
-of the evicted outputs with the full-cache output, and RULER-4K accuracy in the same pipeline. Reads the run folders
-under results/genai_integration/ (or results/genai_integration/ in the published copy) live.
+of the evicted outputs with the full-cache output, and RULER-4K accuracy in the same pipeline under every protocol.
+Reads the run folders under results/genai_integration/ (or results/genai_integration/ in the published copy) live.
 """
 import json
 import sys
@@ -14,18 +14,21 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "experiments/genai_integration"))
-sys.path.insert(0, str(ROOT / "experiments/genai_integration"))
-RES = next((ROOT / "results" / d for d in ("stage4", "genai_integration") if (ROOT / "results" / d).exists()),
-           ROOT / "results/genai_integration")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import common as C  # noqa: E402
 
-st.set_page_config(page_title="Experiment 3 — RestoreKV in OpenVINO GenAI", page_icon="⚡", layout="wide")
+ROOT = C.ROOT
+sys.path.insert(0, str(ROOT / "experiments/genai_integration"))
+sys.path.insert(0, str(ROOT / "experiments/genai_integration"))
+RES = C.STAGE4()
+
+C.page("Experiment 3 · RestoreKV in OpenVINO GenAI", "⚡")
 
 CFG_NAME = {"full": "Full cache (GenAI baseline)", "ov": "OpenVINO eviction 10%", "ov+R": "Eviction 10% + RestoreKV"}
-CFG_COLOR = {CFG_NAME["full"]: "#5b6b7b", CFG_NAME["ov"]: "#e0912f", CFG_NAME["ov+R"]: "#2a9d55"}
+CFG_COLOR = {CFG_NAME["full"]: C.FULL, CFG_NAME["ov"]: C.EVICT, CFG_NAME["ov+R"]: C.RKV}
+PROTO_NAME = {"aware": "Question-aware (GenAI default)", "hybrid": "Question-blind, then continuous (hybrid)"}
 METRIC = {
-    "ttft_ms": "TTFT (ms)", "tpot_ms": "TPOT (ms/token)", "wall_tok_s": "Throughput (tokens/s, wall clock)",
+    "ttft_ms": "TTFT (ms)", "tpot_ms": "TPOT (ms / token)", "wall_tok_s": "Throughput (tokens/s, wall clock)",
     "throughput_tok_s": "Throughput (tokens/s, GenAI)", "generate_duration_ms": "Generation time (ms)",
     "inference_duration_ms": "Inference time (ms)", "kv_mb_per_seq_end": "KV cache held at the end (MB / sequence)",
     "kv_mb_full_cache_equiv": "KV cache a full cache would hold (MB)", "peak_gpu_gtt_gb": "Process GPU memory, peak (GB)",
@@ -34,38 +37,18 @@ METRIC = {
     "sys_pswpout": "System swap-out (pages)", "sys_pgmajfault": "Major page faults",
     "min_mem_available_gb": "Lowest free system memory (GB)",
 }
+fmt_tokens = C.fmt_tokens
 
 
-def fmt_tokens(v):
-    v = int(v)
-    return f"{v // 1024}K" if v >= 1024 and v % 1024 == 0 else str(v)
-
-
-def line(df, y, title, height=430, log_y=False):
+def line(df, y, title, height=420, log_y=False):
     d = df.sort_values("output_tokens")
     fig = px.line(d, x="out_label", y=y, color="Configuration", markers=True, color_discrete_map=CFG_COLOR,
-                  facet_col="model" if d["model"].nunique() > 1 else None, log_y=log_y,
+                  category_orders={"Configuration": list(CFG_NAME.values())},
+                  facet_col="Model" if d["Model"].nunique() > 1 else None, log_y=log_y,
                   labels={"out_label": "Generated output tokens", y: METRIC.get(y, y)}, title=title)
     fig.update_xaxes(type="category")
-    fig.update_layout(height=height, hovermode="x unified", legend_title_text="", margin=dict(t=70, l=40, r=20))
+    fig.update_layout(height=height, hovermode="x unified")
     return fig
-
-
-@st.cache_data(ttl=60)
-def load_decode():
-    frames = []
-    for d in sorted(RES.glob("*_decode_scaling_*")):
-        f = d / "results.csv"
-        if f.exists() and "_smoke" not in d.name:
-            frames.append(pd.read_csv(f))
-    if not frames:
-        return pd.DataFrame()
-    df = pd.concat(frames, ignore_index=True)
-    df = df[df["status"].astype(str).str.startswith(("ok", "skipped"))].drop_duplicates(
-        ["model", "config", "output_tokens", "batch"], keep="last")
-    df["Configuration"] = df["config"].map(CFG_NAME)
-    df["out_label"] = df["output_tokens"].map(fmt_tokens)
-    return df
 
 
 @st.cache_data(ttl=60)
@@ -76,7 +59,7 @@ def load_agreement():
         f = d / "generations.jsonl"
         if not f.exists() or "_smoke" in d.name:
             continue
-        model = d.name.split("_decode_scaling_")[1]
+        model = d.name.split("_decode_scaling_")[1].removesuffix("_hybrid")
         gens = {}
         for line_ in open(f):
             g = json.loads(line_)
@@ -84,132 +67,123 @@ def load_agreement():
                 gens[(g["config"], g["output_tokens"])] = g["ids"]
         for (cfg, out), ids in gens.items():
             if cfg != "full" and ("full", out) in gens:
-                rows.append({"model": model, "config": cfg, "output_tokens": out, **compare(gens[("full", out)], ids)})
+                rows.append({"model": model, "protocol": "hybrid" if d.name.endswith("_hybrid") else "aware",
+                             "config": cfg, "output_tokens": out, **compare(gens[("full", out)], ids)})
     df = pd.DataFrame(rows)
     if len(df):
         df["Configuration"] = df["config"].map(CFG_NAME)
         df["out_label"] = df["output_tokens"].map(fmt_tokens)
+        df["Model"] = df["model"].map(C.MODELS).fillna(df["model"])
     return df
 
 
-@st.cache_data(ttl=60)
-def load_accuracy():
-    rows = []
-    for d in sorted(RES.glob("*genai_ruler4k*")):
-        f = d / "summary.csv"
-        if not f.exists() or "smoke" in d.name:
-            continue
-        name = d.name.split("_", 1)[1]
-        protocol = ("question-blind, exact order" if "exact" in name else "question-blind" if "qblind" in name
-                    else "question-aware (GenAI default)")
-        model = "qwen3-8b"
-        for m in ("qwen3-4b", "llama3.1-8b"):
-            if m in name:
-                model = m
-        s = pd.read_csv(f)
-        s["protocol"], s["model"] = protocol, model
-        rows.append(s)
-    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
-
-
-@st.cache_data(ttl=300)
-def load_prototype():
-    """The Python prototype's 130-sample OpenVINO H2O run (question-blind), for the protocol comparison."""
-    for res in (ROOT / "results/eviction_study", ROOT / "results/eviction_study"):
-        for d in sorted(res.glob("*ruler130_ovblock5000_block16")):
-            s_ = pd.read_csv(d / "summary.csv")
-            s_ = s_[s_["method"].isin(["ov", "ov+restore"])]
-            return pd.DataFrame({"variant": s_["method"].map({"ov": "ov", "ov+restore": "ov+R"}),
-                                 "budget": s_["budget_kept"].astype(float), "score": s_["avg_score"]})
-    return pd.DataFrame()
-
-
-df = load_decode()
-st.title("Experiment 3 — RestoreKV inside OpenVINO GenAI (Arc iGPU)")
-st.caption("Same design as openvino_benchmarking experiment 2 (fixed input, growing output), now with KV-cache eviction "
-           "and RestoreKV inside the real ContinuousBatchingPipeline. Input: 4K tokens of a RULER-4K document; "
-           "output 128 → 16K tokens (ignore_eos); OpenVINO H2O eviction keeps 10% of the input's KV cache and keeps "
-           "evicting while generating. Speed / memory tabs: GenAI default (question-aware) eviction; the Accuracy tab "
-           "shows both the question-aware and the question-blind protocol.")
-if df.empty:
+raw = C.decode_scaling()
+C.hero("Experiment 3 · OpenVINO GenAI on the Arc iGPU", "RestoreKV inside the real GenAI pipeline",
+       "The openvino_benchmarking experiment-2 design (fixed input, growing output), now with KV-cache eviction and "
+       "RestoreKV inside the ContinuousBatchingPipeline. A 4K-token RULER-4K document goes in; 128 → 16K tokens come "
+       "out (ignore_eos). OpenVINO H2O eviction caps the cache at 10% of the input and keeps evicting while "
+       "generating; RestoreKV's 8 slots come out of that same cap.",
+       ["Qwen3-8B · Qwen3-4B · Llama-3.1-8B", "fp16 weights, f16 KV", "batch 1 + batch 8", "greedy decoding"])
+if raw.empty:
     st.info(f"No decode-scaling runs yet in {RES}.")
     st.stop()
 
-models = sorted(df["model"].unique())
+raw["Configuration"] = raw["config"].map(CFG_NAME)
+raw["out_label"] = raw["output_tokens"].map(fmt_tokens)
+raw["Model"] = raw["model"].map(C.MODELS).fillna(raw["model"])
+models = [m for m in C.MODELS.values() if m in set(raw["Model"])]
+
+st.sidebar.markdown("### Filters")
 sel_models = st.sidebar.multiselect("Models", models, default=models)
 sel_cfgs = st.sidebar.multiselect("Configurations", list(CFG_NAME.values()), default=list(CFG_NAME.values()))
-d = df[df["model"].isin(sel_models) & df["Configuration"].isin(sel_cfgs)]
+protos = [p for p in ("aware", "hybrid") if p in set(raw["protocol"])]
+sel_proto = st.sidebar.radio("Eviction protocol (speed & memory tabs)", protos, format_func=PROTO_NAME.get,
+                             help="Question-aware: GenAI as shipped. Hybrid: the document is compressed once before "
+                                  "the request is read (paper protocol), then GenAI keeps evicting during the output. "
+                                  "The full-cache reference is the same run in both.") if len(protos) > 1 else "aware"
+df = raw[(raw["protocol"] == sel_proto) | (raw["config"] == "full")]
+df = df[~((df["config"] == "full") & (df["protocol"] != "aware"))]
+d = df[df["Model"].isin(sel_models) & df["Configuration"].isin(sel_cfgs)]
 d1 = d[(d["batch"] == 1) & d["status"].eq("ok")]
-st.sidebar.markdown(f"**Runs:** {len(d1)} points (batch 1), {int((d['batch'] == 8).sum())} batch-8 points")
+st.sidebar.caption(f"{len(d1)} batch-1 points · {int((d['batch'] == 8).sum())} batch-8 points · refreshes every minute")
+if st.sidebar.button("Reload data"):
+    st.cache_data.clear()
 
-tabs = st.tabs(["Overview", "Latency & throughput", "Memory", "Batching", "Output agreement (3B)", "Accuracy", "Raw data"])
+tabs = st.tabs(["Overview", "Latency & throughput", "Memory", "Batching", "Output agreement (3B)", "Accuracy",
+                "Raw data"])
 
 with tabs[0]:
-    st.subheader("Savings at the longest output, against the GenAI baseline")
+    st.subheader("At the longest output: what eviction saves against the GenAI baseline")
     if d1.empty:
         st.info("No completed batch-1 points.")
     for m in sel_models:
-        dm = d1[d1["model"] == m]
+        dm = d1[d1["Model"] == m]
         if dm.empty:
             continue
         top = dm["output_tokens"].max()
         x = dm[dm["output_tokens"] == top].set_index("config")
-        st.markdown(f"**{m}** — {fmt_tokens(top)} output tokens")
+        st.markdown(f"**{m}** · {fmt_tokens(top)} output tokens")
         cols = st.columns(4)
         if "full" in x.index:
             for i, c in enumerate([c for c in ("ov", "ov+R") if c in x.index]):
                 kv_save = 1 - x.loc[c, "kv_mb_per_seq_end"] / x.loc["full", "kv_mb_per_seq_end"]
                 tpot = x.loc[c, "tpot_ms"] / x.loc["full", "tpot_ms"] - 1
-                cols[2 * i].metric(f"{CFG_NAME[c]}: KV cache", f"{x.loc[c, 'kv_mb_per_seq_end']:.0f} MB",
+                cols[2 * i].metric(f"{CFG_NAME[c]} · KV cache", f"{x.loc[c, 'kv_mb_per_seq_end']:.0f} MB",
                                    f"{-kv_save:+.0%} vs full", delta_color="inverse")
-                cols[2 * i + 1].metric(f"{CFG_NAME[c]}: TPOT", f"{x.loc[c, 'tpot_ms']:.0f} ms",
+                cols[2 * i + 1].metric(f"{CFG_NAME[c]} · TPOT", f"{x.loc[c, 'tpot_ms']:.0f} ms",
                                        f"{tpot:+.0%} vs full", delta_color="inverse")
-    st.caption("Negative = lower than the full cache (better). RestoreKV keeps the same cache size as plain eviction "
-               "(its 8 entries sit inside the budget); its benefit is accuracy, see the Accuracy and Output agreement tabs.")
+    C.note("Negative = lower than the full cache, which is better here. RestoreKV keeps exactly the same cache size as "
+           "plain eviction, because its 8 entries sit inside the budget. Its benefit is accuracy: see the Accuracy and "
+           "Output agreement tabs. KV sizes are computed from the configuration (max_cache_size + one 16-token "
+           "block); the measured device memory is in the Memory tab.")
     st.plotly_chart(line(d1, "kv_mb_per_seq_end", "KV cache held per sequence: capped by eviction, growing without it"),
                     width="stretch")
 
 with tabs[1]:
     st.markdown("How fast is generation as the output grows? Eviction caps the cache, so the time per token stops "
-                "growing with the sequence; TTFT includes reading the 4K-token prompt.")
+                "growing with the sequence. TTFT includes reading the 4K-token prompt.")
     m1, m2 = st.columns(2)
     m1.plotly_chart(line(d1, "tpot_ms", "Time per output token"), width="stretch")
     m2.plotly_chart(line(d1, "wall_tok_s", "Throughput (wall clock)"), width="stretch")
     m3, m4 = st.columns(2)
     m3.plotly_chart(line(d1, "ttft_ms", "Time to first token"), width="stretch")
-    m4.plotly_chart(line(d1, "generate_duration_ms", "Generation time", log_y=True), width="stretch")
+    m4.plotly_chart(line(d1, "generate_duration_ms", "Generation time (log scale)", log_y=True), width="stretch")
 
 with tabs[2]:
-    st.markdown("KV cache held at the end of generation vs what a full cache would hold, plus what the process and "
-                "the system used. GenAI reserves its cache pool up front, so process GPU memory moves less than the "
-                "cache itself; the cache actually held is the first chart.")
+    st.markdown("KV cache held at the end of generation, against what the process and the system used. GenAI "
+                "reserves its cache pool up front and the fp16 weights dominate, so process GPU memory moves much "
+                "less than the cache itself.")
     a, b = st.columns(2)
     a.plotly_chart(line(d1, "kv_mb_per_seq_end", "KV cache held (MB / sequence)"), width="stretch")
-    b.plotly_chart(line(d1, "peak_gpu_gtt_gb", "Process GPU memory, peak"), width="stretch")
+    b.plotly_chart(line(d1, "peak_gpu_gtt_gb", "Process GPU memory, peak (measured)"), width="stretch")
     c_, e = st.columns(2)
     c_.plotly_chart(line(d1, "peak_rss_mb", "Process RSS, peak"), width="stretch")
     e.plotly_chart(line(d1, "min_mem_available_gb", "Lowest free system memory during the run"), width="stretch")
     with st.expander("Swap, page faults and disk reads (experiment-2 counters)"):
         for y in ("peak_swap_mb", "disk_read_mb", "sys_pswpin", "sys_pgmajfault"):
-            st.plotly_chart(line(d1, y, METRIC[y], height=330), width="stretch")
+            st.plotly_chart(line(d1, y, METRIC[y], height=320), width="stretch")
         st.caption("System counters are system-wide deltas during the run; disk reads are this process's reads. Neither "
                    "attributes I/O to the KV cache.")
 
 with tabs[3]:
     st.markdown("Eight requests at once: every decode step reads the weights once for all of them, and evicted caches "
                 "are small, so more sequences fit and decode faster together.")
-    db = d[d["output_tokens"].isin(d[d["batch"] == 8]["output_tokens"].unique())]
+    db = raw[raw["Model"].isin(sel_models) & raw["Configuration"].isin(sel_cfgs) & (raw["protocol"] == "aware")]
+    db = db[db["output_tokens"].isin(db[db["batch"] == 8]["output_tokens"].unique())]
     if (db["batch"] == 8).any():
-        db = db.assign(Batch=db["batch"].astype(str))
-        fig = px.bar(db[db["status"].eq("ok")], x="Configuration", y="wall_tok_s", color="Batch", barmode="group",
-                     facet_col="model", facet_row="out_label", color_discrete_sequence=["#9aa9b8", "#2a6f97"],
-                     labels={"wall_tok_s": "Total tokens/s"}, title="Throughput, batch 1 vs batch 8")
-        fig.update_layout(height=520)
+        ok = db[db["status"].eq("ok")].assign(Batch=lambda x: "batch " + x["batch"].astype(str))
+        fig = px.bar(ok, x="Configuration", y="wall_tok_s", color="Batch", barmode="group", text_auto=".1f",
+                     facet_col="Model", facet_row="out_label", color_discrete_sequence=["#b7d3f6", C.BLUE],
+                     category_orders={"Configuration": list(CFG_NAME.values()), "Batch": ["batch 1", "batch 8"]},
+                     labels={"wall_tok_s": "Total tokens/s", "Configuration": "", "out_label": "output"},
+                     title="Throughput, batch 1 vs batch 8 (all sequences together)")
+        fig.update_layout(height=560)
+        fig.update_xaxes(tickangle=-20)
         st.plotly_chart(fig, width="stretch")
         sk = db[db["status"].str.startswith("skipped")]
         if len(sk):
-            st.caption("Not run (would not fit in memory): " + ", ".join(
-                f"{r.model} {r.Configuration} batch {r.batch} {r.out_label}" for r in sk.itertuples()))
+            st.caption("Not run (would not fit in the 30 GB of shared memory): " + ", ".join(
+                f"{r.Model} {r.Configuration} batch {r.batch} {r.out_label}" for r in sk.itertuples()))
     else:
         st.info("No batch-8 points yet.")
 
@@ -220,76 +194,87 @@ with tabs[4]:
     if ag.empty:
         st.info("No pairs yet.")
     else:
-        ag = ag[ag["model"].isin(sel_models)]
+        ag = ag[ag["Model"].isin(sel_models) & (ag["protocol"] == sel_proto)]
         a, b = st.columns(2)
         a.plotly_chart(line(ag, "first_divergence", "Identical prefix (tokens before the first difference)"),
                        width="stretch")
         b.plotly_chart(line(ag, "4gram_f1", "4-gram overlap with the full-cache output (F1)"), width="stretch")
-        st.dataframe(ag.drop(columns=["out_label"]).sort_values(["model", "output_tokens", "config"]), width="stretch")
+        C.note("One prompt per model and output length, so read this as an illustration, not a measurement with an "
+               "error bar.")
+        st.dataframe(ag.drop(columns=["out_label", "Model"]).sort_values(["model", "output_tokens", "config"]),
+                     width="stretch", hide_index=True)
 
 with tabs[5]:
-    acc = load_accuracy()
     st.markdown("""
-**Two protocols — read them separately.** Both use the same eviction scorer (OpenVINO H2O), budget and adapter;
-they differ only in *when* the cache is compressed:
+**Read every protocol separately.** All use the same eviction scorer (OpenVINO H2O), budget and adapter; they differ
+only in *when* the cache is compressed:
 
 | Protocol | When eviction happens | What it models | Comparable with |
 |---|---|---|---|
-| **Question-aware** (GenAI default, as shipped) | after the whole prompt, document **and question**, has been read; the scorer's last 8 tokens follow the question | one question per document, answered once | itself only |
-| **Question-blind** (RestoreKV paper protocol) | after the **document**, before the question is seen; the question is read on the compressed cache | compress once, reuse the cache for many questions | the paper and the Python prototype |
+| **Question-aware** (GenAI default, as shipped) | after the whole prompt, document **and question**; the scorer's last 8 tokens are the question | one question per document, answered once | itself only |
+| **Question-blind** (RestoreKV paper protocol) | after the **document**, before the question; the question is read on the compressed cache | compress once, reuse the cache for any question | the paper and the Python prototype |
+| **Blind → continuous** (hybrid, new) | once after the document, then GenAI keeps evicting while the answer is written | compress once, then generate at length with a capped cache | question-blind |
 
-Question-aware scores are much higher because the scorer already knows the question. The fair comparison inside each
-protocol is *eviction vs eviction + RestoreKV* at the same budget. "Inside order" and "exact order" are two ways of
-running the question-blind protocol in GenAI (restore tokens inside the prompt vs fed after the document prefill,
-exactly as in the prototype).""")
-    if acc.empty:
+*Inside order* and *exact order* are two ways of running the question-blind protocol in GenAI: restore tokens inside
+the document prefill, or fed after it on the full cache exactly as in the prototype.""")
+    ruler = pd.concat([x for x in (C.genai_ruler(), C.prototype_ruler()) if len(x)], ignore_index=True)
+    if ruler.empty:
         st.info("No accuracy runs yet.")
     else:
-        acc = acc[acc["model"].isin(sel_models)].copy()
-        acc["Configuration"] = acc["variant"].map({"full": CFG_NAME["full"], "ov": "OpenVINO eviction",
-                                                   "ov+R": "Eviction + RestoreKV"})
-        acc["Budget"] = acc["budget"].apply(lambda b: "full" if pd.isna(b) else f"{float(b):.1%}")
-        proto = load_prototype()
-        if "qwen3-8b" in sel_models:
-            st.subheader("Qwen3-8B: the same RULER-4K samples under every protocol")
-            rows = []
-            for b in sorted(acc[acc["variant"] != "full"]["budget"].dropna().unique()):
-                row = {"Budget": f"{b:.1%}"}
-                if len(proto):
-                    pb = proto[proto["budget"].round(3) == round(b, 3)].set_index("variant")["score"]
-                    row["Prototype, question-blind"] = f"{pb.get('ov', float('nan')):.1f} → {pb.get('ov+R', float('nan')):.1f}"
-                for p_ in ("question-blind", "question-blind, exact order", "question-aware (GenAI default)"):
-                    g_ = acc[(acc["model"] == "qwen3-8b") & (acc["protocol"] == p_) & (acc["budget"].round(3) == round(b, 3))]
-                    g_ = g_.set_index("variant")["score"]
-                    if len(g_):
-                        label = {"question-blind": "GenAI, question-blind (inside order)",
-                                 "question-blind, exact order": "GenAI, question-blind (exact order)",
-                                 "question-aware (GenAI default)": "GenAI, question-aware (default)"}[p_]
-                        row[label] = f"{g_.get('ov', float('nan')):.1f} → {g_.get('ov+R', float('nan')):.1f}"
-                rows.append(row)
-            st.dataframe(pd.DataFrame(rows).set_index("Budget"), width="stretch")
-            st.caption("Each cell: OpenVINO eviction → eviction + RestoreKV. Full cache: 93.1 in both the prototype and GenAI.")
-        for p_ in ("question-blind", "question-blind, exact order", "question-aware (GenAI default)"):
-            sub = acc[acc["protocol"] == p_]
+        t = C.paired_table(ruler)
+        t["Model"] = t["model"].map(C.MODELS)
+        t = t[t["Model"].isin(sel_models)]
+        if "Qwen3-8B" in sel_models:
+            st.subheader("Qwen3-8B: the same 130 RULER-4K samples under every protocol")
+            q = t[t["model"] == "qwen3-8b"]
+            order = [p for p in ("proto", "blind", "exact", "hybrid", "aware") if p in set(q["protocol"])]
+            cell = q.assign(txt=lambda x: x.apply(
+                lambda r: f"{r['ov']:.1f} → {r['ov+R']:.1f}  ({r['gain']:+.1f} [{r['lo']:+.1f}, {r['hi']:+.1f}])"
+                + ("" if r["n"] >= 130 else f" · {int(r['n'])} so far"), axis=1))
+            show = cell.pivot_table(index="budget", columns="protocol", values="txt", aggfunc="first")[order]
+            show.index = [C.pct(b) for b in show.index]
+            show.columns = [C.PROTOCOLS[p][1] for p in order]
+            st.dataframe(show, width="stretch")
+            st.caption("Each cell: eviction → eviction + RestoreKV (paired gain [95% bootstrap interval]). Full cache "
+                       "93.1 in both the prototype and GenAI. An interval that excludes 0 is a significant gain.")
+            g = q[q["protocol"].isin(order)].copy()
+            g["Protocol"] = g["protocol"].map(lambda p: C.PROTOCOLS[p][1])
+            g["Budget"] = g["budget"].map(C.pct)
+            g["err_hi"], g["err_lo"] = g["hi"] - g["gain"], g["gain"] - g["lo"]
+            fig = px.bar(g, x="Budget", y="gain", color="Protocol", barmode="group", error_y="err_hi",
+                         error_y_minus="err_lo", text_auto="+.1f",
+                         category_orders={"Protocol": [C.PROTOCOLS[p][1] for p in order]},
+                         color_discrete_map={C.PROTOCOLS[p][1]: C.PROTOCOLS[p][2] for p in order},
+                         labels={"gain": "RestoreKV gain (points)", "Budget": "budget (share of the KV cache kept)"},
+                         title="RestoreKV gain per protocol, with 95% intervals")
+            fig.update_traces(error_y=dict(color=C.MUTED, thickness=1.2, width=3), textposition="outside")
+            fig.add_hline(y=0, line_color=C.AXIS)
+            fig.update_layout(height=430)
+            st.plotly_chart(fig, width="stretch")
+        st.subheader("Eviction vs eviction + RestoreKV, per protocol and model")
+        for p in ("blind", "exact", "hybrid", "aware"):
+            sub = t[t["protocol"] == p]
             if sub.empty:
                 continue
-            st.subheader({"question-blind": "Question-blind protocol (paper) — GenAI, inside order",
-                          "question-blind, exact order": "Question-blind protocol (paper) — GenAI, exact prototype order",
-                          "question-aware (GenAI default)": "Question-aware protocol — GenAI as shipped"}[p_])
-            for m, g_ in sub.groupby("model"):
-                ev = g_[g_["variant"] != "full"]
-                if ev.empty:
-                    continue
-                fig = px.bar(ev, x="Budget", y="score", color="Configuration", barmode="group", text_auto=".1f",
-                             color_discrete_map={"OpenVINO eviction": "#e0912f", "Eviction + RestoreKV": "#2a9d55"},
-                             title=m)
-                full = acc[(acc["model"] == m) & (acc["variant"] == "full")]
-                if len(full):
-                    fig.add_hline(y=float(full["score"].iloc[0]), line_dash="dash",
-                                  annotation_text=f"full cache {float(full['score'].iloc[0]):.1f}")
-                fig.update_layout(height=360, yaxis_title="RULER-4K score")
-                st.plotly_chart(fig, width="stretch")
+            st.markdown(f"**{C.PROTOCOLS[p][0]}**")
+            cols = st.columns(max(1, sub["Model"].nunique()))
+            for col, (m, g_) in zip(cols, sub.groupby("Model", sort=False)):
+                long = g_.melt(id_vars=["budget", "full"], value_vars=["ov", "ov+R"], var_name="v", value_name="score")
+                long["Configuration"] = long["v"].map({"ov": "OpenVINO eviction", "ov+R": "Eviction + RestoreKV"})
+                long["Budget"] = long["budget"].map(C.pct)
+                fig = px.bar(long, x="Budget", y="score", color="Configuration", barmode="group", text_auto=".0f",
+                             color_discrete_map={"OpenVINO eviction": C.EVICT, "Eviction + RestoreKV": C.RKV},
+                             labels={"score": "RULER-4K score"}, title=m, range_y=[0, 100])
+                fm = g_["full"].dropna()
+                if len(fm):
+                    fig.add_hline(y=float(fm.iloc[0]), line_dash="dash", line_color=C.FULL,
+                                  annotation_text=f"full cache {float(fm.iloc[0]):.1f}", annotation_position="top left")
+                fig.update_traces(textposition="outside")
+                fig.update_layout(height=340)
+                col.plotly_chart(fig, width="stretch")
+        with st.expander("All accuracy numbers"):
+            st.dataframe(t.drop(columns=["Model"]).round(2), width="stretch", hide_index=True)
 
 with tabs[6]:
-    st.dataframe(d.drop(columns=["out_label"]), width="stretch")
+    st.dataframe(d.drop(columns=["out_label"]), width="stretch", hide_index=True)
     st.download_button("Download CSV", d.to_csv(index=False), "experiment3_decode_scaling.csv")

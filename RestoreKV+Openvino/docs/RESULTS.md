@@ -179,31 +179,44 @@ the same answer as the prototype's restore pass.
 | Comparable with | the paper, the prototype (§1) | only itself |
 
 Stock GenAI only does question-aware eviction. The question-blind runs use an opt-in mode added to the patched
-pipeline (`RESTOREKV_QUERY_BLIND=1`): the prompt `[document][SEP][question]` is prefilled up to SEP, evicted once
-with the window on the document's end, and the question is then fed token by token on the evicted cache. In this
-"inside order" variant the 8 restore tokens sit just before the last 8 document tokens, so that both variants are
-scored from the same window. A second variant that follows the prototype's order exactly (restore tokens fed after
-the document prefill and excluded from the scores, `RESTOREKV_QUERY_BLIND=2`) is in the branch as well.
+pipeline (environment variable `RESTOREKV_QUERY_BLIND`): the prompt `[document][SEP][question]` is prefilled up to
+SEP, evicted once with the window on the document's end, and the question is then fed token by token on the evicted
+cache. Two placements of the restore tokens are implemented:
+
+| Mode | Prompt | Restore pass | Scoring window | Eviction |
+|---|---|---|---|---|
+| **Inside order** (`=1`) | `[doc minus last 8][restore ×8][last 8 doc][SEP][question]` | inside the single document prefill | last 8 document tokens (same as plain eviction) | after the prefill; restore block protected |
+| **Exact order** (`=2`) | `[doc][SEP][restore ×8][question]` | after the prefill, one token per step on the full cache, not scored | last 8 document tokens | after the 8th restore token, as in the prototype |
+
+A third mode, **question-blind then continuous** (`=3`, "hybrid"), evicts once after the document like the inside
+order and then lets GenAI's normal continuous eviction run while the answer is generated, so the cache stays capped
+for long outputs; its runs are in progress.
 
 ### 7.2 Accuracy, Qwen3-8B, RULER-4K 130 samples
 
 OpenVINO H2O (NORM_SUM, SnapKV window 8, start/recent 32, 16-token blocks), H2O adapter. Full cache **93.1**
 (identical to the prototype). Paired gain of RestoreKV with 95% bootstrap interval and samples better / worse:
 
-| Budget | Prototype, question-blind | **GenAI, question-blind** | gain | **GenAI, question-aware** | gain |
-|---|---|---|---|---|---|
-| 2.5% | 4.9 → 6.8 | 4.9 → 9.1 | +4.2 [+2.1, +6.7], 16 / 0 | 10.5 → 10.2 | −0.3 [−3.3, +2.3], 9 / 5 |
-| 5% | 15.1 → 16.6 | 17.1 → 22.2 | +5.1 [+1.0, +9.5], 17 / 5 | 49.6 → 53.5 | +4.0 [+0.9, +7.5], 18 / 6 |
-| 10% | 32.7 → 34.8 | 33.9 → 38.2 | +4.2 [+0.7, +8.0], 19 / 5 | 67.6 → 72.3 | +4.7 [+1.5, +8.3], 21 / 8 |
-| 15% | 43.8 → 49.8 | 42.3 → 52.7 | +10.4 [+5.4, +15.9], 29 / 7 | 75.3 → 81.3 | +6.0 [+2.1, +10.2], 18 / 6 |
-| 25% | 61.2 → 64.8 | 60.9 → 67.4 | +6.5 [+0.6, +12.3], 27 / 11 | 80.7 → 89.7 | +9.1 [+4.6, +13.9], 19 / 3 |
+| Budget | Prototype, question-blind | **GenAI, question-blind, inside order** | gain | GenAI, question-blind, exact order | gain | **GenAI, question-aware** | gain |
+|---|---|---|---|---|---|---|---|
+| 2.5% | 4.9 → 6.8 (+2.0) | 4.9 → 9.1 | +4.2 [+2.1, +6.7], 16 / 0 | 5.1 → 6.8 | +1.7 [−0.1, +3.9], 9 / 2 | 10.5 → 10.2 | −0.3 [−3.3, +2.3], 9 / 5 |
+| 5% | 15.1 → 16.6 (+1.5) | 17.1 → 22.2 | +5.1 [+1.0, +9.5], 17 / 5 | 18.7 → 16.6 | −2.0 [−6.5, +2.3], 11 / 14 | 49.6 → 53.5 | +3.9 [+0.9, +7.5], 18 / 6 |
+| 10% | 32.7 → 34.8 (+2.1) | 33.9 → 38.2 | +4.2 [+0.7, +8.0], 19 / 5 | 33.2 → 36.1 | +2.9 [−0.1, +6.0], 16 / 5 | 67.6 → 72.3 | +4.7 [+1.5, +8.3], 21 / 8 |
+| 15% | 43.8 → 49.8 (+6.0) | 42.3 → 52.7 | +10.4 [+5.4, +15.9], 29 / 7 | 42.5 → 48.7 | +6.1 [+2.1, +10.7], 23 / 5 | 75.3 → 81.3 | +5.9 [+2.1, +10.2], 18 / 6 |
+| 25% | 61.2 → 64.8 (+3.6) | 60.9 → 67.4 | +6.5 [+0.6, +12.3], 27 / 11 | 61.3 → 64.3 | +2.9 [−1.2, +6.9], 19 / 5 | 80.7 → 89.7 | +9.1 [+4.6, +13.9], 19 / 3 |
 
-- Question-blind: plain eviction inside GenAI reproduces the prototype within 1–2 points at every budget, and
-  RestoreKV's gain is above sampling noise at all five budgets.
-- Question-aware: absolute scores are much higher (the scorer knows the question); RestoreKV still adds +4 to +9
+- **Question-blind:** plain eviction inside GenAI reproduces the prototype within 1–2 points at every budget in both
+  orders, so the C++ port evicts what the prototype evicts.
+- **Exact order reproduces the prototype's RestoreKV gains** (+1.7 / −2.0 / +2.9 / +6.1 / +2.9 against the
+  prototype's +2.0 / +1.5 / +2.1 / +6.0 / +3.6): the same algorithm in the real pipeline gives the same result.
+- **Inside order gains more**, significantly at all five budgets (+4.2 to +10.4). It differs from the exact order
+  only in where the 8 restore tokens are processed: inside the one document prefill, batched as in training, and
+  followed by the last 8 document tokens, which can attend to them. Why this helps is not yet isolated.
+- **Question-aware:** absolute scores are much higher (the scorer knows the question); RestoreKV still adds +4 to +9
   points from 5% to 25%, although its adapter was trained for the question-blind setting.
 
-Runs: `results/genai_integration/2026-10-18_genai_ruler4k_qblind_n10` (question-blind),
+Runs: `results/genai_integration/2026-10-18_genai_ruler4k_qblind_n10` (question-blind, inside order),
+`..._2026-10-20_genai_ruler4k_qblind_exact_n10` (exact order),
 `..._2026-10-17_genai_ruler4k_n10` and `..._n10_full` (question-aware, full cache).
 
 ### 7.3 Speed and memory, Qwen3-8B (4K input, question-aware)
@@ -263,10 +276,13 @@ All lengths (128, 256, 512, 1K, 2K, 4K, 8K, 16K) are in the dashboard and each r
 | Qwen3-8B | 8K | does not fit | 30.5 | 30.1 |
 | Qwen3-4B | 2K | 28.4 | 47.8 | 48.1 |
 | Qwen3-4B | 8K | 25.1 | 56.0 | 55.9 |
+| Llama-3.1-8B | 2K | 20.2 | 26.9 | 27.5 |
+| Llama-3.1-8B | 8K | does not fit | 30.6 | 30.6 |
 
 Eight sequences share every read of the weights, and the evicted caches are small, so more of them fit and they decode
-faster together: up to 2.2× the full cache's throughput (Qwen3-4B, 8K output). Llama-3.1-8B batch-8 points: see
-`results/genai_integration/2026-10-20_decode_scaling_llama3.1-8b`.
+faster together: +33–36% over the full cache for the 8B models at 2K output, up to 2.2× for Qwen3-4B at 8K. At 8K
+output the 8B models' full caches (8 × 1.5–1.7 GB plus 16 GB of weights) do not fit in the 30 GB of shared memory;
+the evicted ones need 8 × 52–58 MB.
 
 ### 8.3 How close the evicted outputs stay to the full-cache output
 

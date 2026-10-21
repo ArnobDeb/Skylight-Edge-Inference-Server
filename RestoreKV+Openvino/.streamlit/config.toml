@@ -1,0 +1,17 @@
+# Look of the dashboards (dashboard/*.py); run them from this folder so Streamlit finds this file.
+[theme]
+base = "light"
+primaryColor = "#2a78d6"
+backgroundColor = "#f9f9f7"
+secondaryBackgroundColor = "#f0efec"
+textColor = "#0b0b0b"
+font = "sans-serif"
+baseRadius = "medium"
+borderColor = "#e1e0d9"
+showWidgetBorder = true
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

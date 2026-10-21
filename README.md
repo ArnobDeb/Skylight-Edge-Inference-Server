@@ -48,12 +48,14 @@ From `RestoreKV+Openvino`:
   [fork + diff](https://github.com/ArnobDeb/openvino.genai/pull/1)). RULER-4K, Qwen3-8B, eviction → + RestoreKV:
   - **question-blind** (cache compressed after the document, before the question; the RestoreKV paper's protocol):
     gains of +4.2 to +10.4 points at all budgets (e.g. 42.3 → 52.7 at 15%), plain eviction matching the Python
-    prototype within 1–2 points;
-  - **question-aware** (GenAI's default: compressed after reading the question): +4.0 to +9.1 points from 5% to 25%
+    prototype within 1–2 points; with the prototype's exact order of operations the gains match the prototype's
+    (+1.7 to +6.1);
+  - **question-aware** (GenAI's default: compressed after reading the question): +3.9 to +9.1 points from 5% to 25%
     (80.7 → 89.7 at 25%).
 - Experiment 3 (decode scaling, Qwen3-8B / Qwen3-4B / Llama-3.1-8B, 4K input, 128 → 16K output): eviction caps the
   KV cache at 52–58.5 MB per sequence (−98% vs 2.6–2.9 GB), keeps the time per token flat (−6% to −14% at 16K) and
-  more than doubles batch-8 throughput for Qwen3-4B (25 → 56 tokens/s); RestoreKV costs no speed or memory.
+  raises batch-8 throughput by about a third for the 8B models and more than doubles it for Qwen3-4B (25 → 56
+  tokens/s); RestoreKV costs no speed or memory.
 - How much it helps depends on how finely the cache is evicted: OpenVINO drops 16-token blocks for all heads of a
   layer at once, which loses far more than per-head, per-token eviction.
 
