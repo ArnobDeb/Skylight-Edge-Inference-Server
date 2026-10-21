@@ -239,6 +239,25 @@ Total decode tokens/s over all sequences:
   each prompt must fit whole before the first eviction; after eviction a 4K sequence uses 56 MB of cache instead of
   0.6–0.9 GB, which is where the speed-up at batch 4–8 comes from.
 
+### 7.4 Other models in GenAI (Experiment 3C, question-aware)
+
+The same pipeline and protocol as the question-aware column of §7.2, with each model's own adapter (trained with the
+same recipe against OpenVINO H2O). RULER-4K, 130 samples, paired gain [95% interval], samples better / worse:
+
+| Budget | Qwen3-4B: eviction → + RestoreKV | gain | Llama-3.1-8B: eviction → + RestoreKV | gain |
+|---|---|---|---|---|
+| 2.5% | 13.9 → 12.3 | −1.7 [−5.0, +1.4], 7 / 8 | running | |
+| 5% | 52.1 → 54.8 | +2.7 [−1.9, +7.5], 14 / 7 | | |
+| 10% | 67.9 → **76.1** | **+8.2** [+4.0, +12.9], 23 / 6 | | |
+| 15% | 76.2 → **82.6** | **+6.4** [+2.8, +10.7], 15 / 4 | | |
+| 25% | 82.4 → **87.3** | **+5.0** [+1.7, +8.8], 12 / 5 | | |
+| full cache | 92.2 | | running | |
+
+- Qwen3-4B follows Qwen3-8B: no gain at 2.5% (almost everything is evicted), significant gains from 10% to 25%,
+  the largest at 10% (+8.2, against +4.7 for Qwen3-8B).
+
+Runs: `results/genai_integration/2026-10-20_genai_ruler4k_n10_qwen3-4b`, `..._n10_full_qwen3-4b`.
+
 ## 8. Experiment 3: decode scaling in GenAI, three models
 
 The design of `openvino_benchmarking`'s experiment 2 (fixed input, growing output), now with eviction and RestoreKV:

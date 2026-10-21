@@ -1,0 +1,32 @@
+{
+  "model": "artifacts/genai_models/qwen3-4b-fp16-restorekv-ovblock5000",
+  "device": "GPU",
+  "seq_len": "4096",
+  "n_per_task": "10",
+  "budgets": "0.025,0.05,0.10,0.15,0.25",
+  "variants": "ov,ov+R",
+  "start": "32",
+  "recent": "32",
+  "window": "8",
+  "block": "16",
+  "cache_gb": "2",
+  "max_batched_tokens": "8192",
+  "no_eviction": "False",
+  "query_blind": "False",
+  "restore_order": "inside",
+  "then_continuous": "False",
+  "out": "genai_ruler4k_n10_qwen3-4b",
+  "max_requests": "0",
+  "date": "2026-10-20",
+  "mem_floor_gb": "3.0",
+  "restorekv": {
+    "first_token_id": 151936,
+    "num_tokens": 8,
+    "checkpoint": "artifacts/adapters/ovblock_qwen3-4b/checkpoint_step5000.npz",
+    "base_model": "../models/qwen3-4b-fp16-ov",
+    "lora_branches": 252,
+    "scaling": 2.0
+  },
+  "openvino_genai": "/home/semix/apdesai_openvino_intel_mtp/RestoreKV+Openvino/<openvino.genai fork build dir>/openvino_genai/__init__.py",
+  "openvino": "2026.4.1-22982-e213a147257-releases/2026/4"
+}

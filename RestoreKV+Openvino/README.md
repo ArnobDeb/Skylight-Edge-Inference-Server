@@ -89,6 +89,8 @@ Bold: RestoreKV's gain is significant (paired 95% bootstrap interval above 0).
   restore tokens inside the document prefill ("inside order") the gain is larger and significant at all five budgets
   (+4.2 to +10.4).
 - **Question-aware:** RestoreKV adds +3.9 to +9.1 points from 5% to 25% (above noise), at the same speed and memory.
+- **Other models (question-aware):** Qwen3-4B with its own adapter gains +8.2 / +6.4 / +5.0 points at 10 / 15 / 25%
+  (67.9 → 76.1, 76.2 → 82.6, 82.4 → 87.3; significant; full cache 92.2); Llama-3.1-8B is running. [docs/RESULTS.md](docs/RESULTS.md) §7.4.
 - Full cache 93.1 in both the prototype and GenAI.
 
 ### Experiment 3: decode scaling in GenAI, three models
