@@ -21,7 +21,8 @@ question ──► answer from the kept entries + the 8 summary entries (LoRA of
 ## Main results
 
 RULER-4K, 130 samples (10 per task × 13 tasks), Qwen3-8B fp16 on the Arc iGPU. Budget = share of the document's
-KV cache kept; both columns of a pair use the same memory. Full cache: **93.1**.
+KV cache kept; both columns of a pair use the same memory. Full cache: **93.1**. These are the Python prototype's
+results, under the **question-blind** protocol of the RestoreKV paper (see "Two protocols" below).
 
 | Budget kept | OpenVINO H2O (default) | + RestoreKV | OpenVINO ADAPTIVE_RKV | + RestoreKV | KVzip (paper's eviction) | + RestoreKV |
 |---|---|---|---|---|---|---|
@@ -53,10 +54,55 @@ full cache and 5.6–6.6 tokens/s after eviction; eight evicted sequences togeth
 32K cache fits only one). RestoreKV decodes exactly as fast as plain eviction; its only cost is the restore pass:
 0.34 s per 4K document, 1.94 s per 32K document (about 1.5% of reading a 4K document and 1% of a 32K one).
 
-**Inside OpenVINO GenAI's own pipeline** (C++ `ContinuousBatchingPipeline`, patched; RULER-4K 130, OpenVINO
-eviction as shipped, which evicts after reading the question): 49.6 → 53.5 at 5%, 67.6 → 72.3 at 10%, 75.3 → 81.3 at
-15%, **80.7 → 89.7 at 25%** (full cache 93.1), at the same decode speed as plain eviction. GenAI change:
-[ArnobDeb/openvino.genai, branch restorekv-2026.4.1](https://github.com/ArnobDeb/openvino.genai/pull/1).
+### Two protocols: question-blind vs question-aware
+
+Both use OpenVINO's own eviction (H2O scoring, 16-token blocks), the same budgets and the same adapter. They differ
+only in **when** the KV cache is compressed:
+
+| Protocol | When the cache is compressed | Models the use case | Compare with |
+|---|---|---|---|
+| **Question-blind** (RestoreKV paper, our prototype) | right after the document, before the question is seen; the question is read on the compressed cache | compress a document once, reuse it for many questions | the paper |
+| **Question-aware** (OpenVINO GenAI default, as shipped) | after the whole prompt, document **and** question, has been read; OpenVINO's scorer looks from the end of the question | one question per document | itself only |
+
+Question-aware scores are much higher, because the scorer already knows what will be asked. Within each protocol the
+fair comparison is eviction vs eviction + RestoreKV at the same budget.
+
+### Inside OpenVINO GenAI (C++ pipeline)
+
+RestoreKV in GenAI's `ContinuousBatchingPipeline` (patched, [ArnobDeb/openvino.genai, branch
+restorekv-2026.4.1](https://github.com/ArnobDeb/openvino.genai/pull/1)): real paged cache, real block eviction,
+OpenVINO's own scorer, the 8 restore tokens protected. Qwen3-8B, RULER-4K 130 samples, OpenVINO eviction → + RestoreKV:
+
+| Budget | Prototype, question-blind | **GenAI, question-blind** | **GenAI, question-aware** (default) |
+|---|---|---|---|
+| 2.5% | 4.9 → 6.8 | 4.9 → **9.1** | 10.5 → 10.2 |
+| 5% | 15.1 → 16.6 | 17.1 → **22.2** | 49.6 → **53.5** |
+| 10% | 32.7 → 34.8 | 33.9 → **38.2** | 67.6 → **72.3** |
+| 15% | 43.8 → 49.8 | 42.3 → **52.7** | 75.3 → **81.3** |
+| 25% | 61.2 → 64.8 | 60.9 → **67.4** | 80.7 → **89.7** |
+
+- **Question-blind:** plain eviction in GenAI matches the prototype within 1–2 points (same protocol, different
+  runtime path), and RestoreKV's gain is above sampling noise at all five budgets (+4.2 to +10.4).
+- **Question-aware:** RestoreKV adds +4.0 to +9.1 points from 5% to 25% (above noise), at the same speed and memory.
+- Full cache 93.1 in both the prototype and GenAI.
+
+### Experiment 3: decode scaling in GenAI, three models
+
+4K-token input (RULER-4K text), 128 → 16K generated tokens, GenAI default eviction (question-aware, keeps evicting
+while generating) at 10%, batch 1 and batch 8; Qwen3-8B, Qwen3-4B and Llama-3.1-8B-Instruct, each with its own
+adapter. At 16K output, batch 1:
+
+| Model | Time per token: full / eviction / + RestoreKV | Tokens/s | KV cache per sequence | Time to first token: full / eviction |
+|---|---|---|---|---|
+| Qwen3-8B | 228 / 210 / 210 ms | 4.37 / 4.76 / 4.75 | 2.9 GB → **58.5 MB** | 7.8 / ~11 s |
+| Qwen3-4B | 129 / 111 / 111 ms | 7.73 / 8.95 / 9.01 | 2.9 GB → **58.5 MB** | 4.4 / ~7.8 s |
+| Llama-3.1-8B | 224 / 210 / 208 ms | 4.45 / 4.74 / 4.80 | 2.6 GB → **52 MB** | 7.3 / ~10.5 s |
+
+Batch 8 (total tokens/s): Qwen3-4B at 8K output 25.1 (full) → **56.0** (eviction) / 55.9 (+ RestoreKV); Qwen3-8B
+at 2K output 19.7 → 26.3 / 26.6 (at 8K only the evicted caches fit: 30.5 / 30.1). The full cache's time per token
+grows with the output, the evicted one stays flat; RestoreKV runs at the speed and memory of plain eviction. Details,
+including how close the evicted outputs stay to the full-cache output: [docs/RESULTS.md](docs/RESULTS.md) §8.
+Interactive: `streamlit run dashboard/app_experiment3.py`.
 
 Details and all tables: [docs/RESULTS.md](docs/RESULTS.md). How the code drives OpenVINO: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -128,11 +174,11 @@ experiments/
   ov_prototype/          IR checks, RULER evaluator, runtime cross-check against OpenVINO GenAI
   adapter_training/      patches for the RestoreKV training code, port tests, cluster job scripts
   eviction_study/        long-context evaluator, memory and speed benchmark
-  genai_integration/     RestoreKV inside OpenVINO GenAI: model export, RULER and throughput through ContinuousBatchingPipeline
+  genai_integration/     RestoreKV inside OpenVINO GenAI: model export, RULER (both protocols), throughput, decode scaling
 benchmarks/              launch scripts, long-context data generation (RULER-32K, LOFT-32K), INT8 model export
 profiling/               speed / memory measurements of the OpenVINO pipeline on the iGPU
 results/                 one folder per run (config.json, results.jsonl, summary.csv)
-dashboard/               Streamlit dashboard
+dashboard/               Streamlit dashboards (app.py: prototype; app_experiment3.py: GenAI, Experiment 3)
 docs/                    ARCHITECTURE.md, RESULTS.md
 artifacts/adapters/      trained adapters used in the results
 ```

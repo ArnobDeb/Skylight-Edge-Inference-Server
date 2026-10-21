@@ -49,12 +49,23 @@ def main():
     ap.add_argument("--max-batched-tokens", type=int, default=8192,
                     help="whole prompt in one chunk: multi-chunk prefill with eviction fails on the iGPU (2026.4.1)")
     ap.add_argument("--no-eviction", action="store_true", help="full-cache reference (ignores --budgets)")
+    ap.add_argument("--query-blind", action="store_true",
+                    help="evict once right after the document, before the question (RestoreKV paper / prototype "
+                         "protocol; patched GenAI, RESTOREKV_QUERY_BLIND=1). Not what stock GenAI does.")
+    ap.add_argument("--restore-order", choices=["inside", "exact"], default="inside",
+                    help="question-blind only. inside: restore tokens in the prompt, 8 tokens before the document end "
+                         "(one prefill). exact: prototype order - prefill + score the document, restore tokens fed "
+                         "afterwards on the full cache (not scored), evict, then the question (RESTOREKV_QUERY_BLIND=2)")
     ap.add_argument("--out", default="genai_ruler4k")
+    ap.add_argument("--max-requests", type=int, default=0, help="stop cleanly after this many requests (0 = all)")
     ap.add_argument("--date", default=str(date.today()))
     ap.add_argument("--mem-floor-gb", type=float, default=3.0)
     args = ap.parse_args()
     protect(floor_gb=args.mem_floor_gb)
 
+    import os
+    if args.query_blind:
+        os.environ["RESTOREKV_QUERY_BLIND"] = "2" if args.restore_order == "exact" else "1"   # read at construction
     import openvino as ov
     import openvino_genai as g
     from transformers import AutoTokenizer
@@ -74,7 +85,17 @@ def main():
     for idx, row in samples:
         ctx = encode(prefix_text + row["context"])
         q = encode(row["question"] + question_suffix + row["answer_prefix"])
-        prompts[idx] = {"ov": np.concatenate([ctx, q]), "ov+R": np.concatenate([ctx, restore_ids, q]), "T": len(ctx)}
+        if args.query_blind:
+            # [document][SEP][question]; the pipeline prefills up to SEP, evicts once, then feeds the question.
+            # The SnapKV window is the last 8 prompt tokens, so the restore tokens go just before the last 8
+            # document tokens: the scoring window is the document's end for both variants.
+            sep = np.array([rk["first_token_id"] + rk["num_tokens"]], np.int64)
+            w = args.window
+            r_part = (np.concatenate([ctx, sep, restore_ids, q]) if args.restore_order == "exact"
+                      else np.concatenate([ctx[:-w], restore_ids, ctx[-w:], sep, q]))
+            prompts[idx] = {"ov": np.concatenate([ctx, sep, q]), "ov+R": r_part, "T": len(ctx), "Q": len(q)}
+        else:
+            prompts[idx] = {"ov": np.concatenate([ctx, q]), "ov+R": np.concatenate([ctx, restore_ids, q]), "T": len(ctx)}
 
     out_dir = ROOT / "results/genai_integration" / f"{args.date}_{args.out}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -101,14 +122,26 @@ def main():
                 if (idx, v, b) in done:
                     continue
                 ids = prompts[idx]["ov" if v == "full" else v]
-                jobs.setdefault(None if b is None else max_cache(len(ids), b), []).append((idx, row, v, b, ids))
+                n_budget = prompts[idx]["T"] if args.query_blind else len(ids)   # restore slots inside the budget
+                mc = None if b is None else max_cache(n_budget, b)
+                if mc is not None and args.query_blind and args.restore_order == "exact" and v == "ov+R":
+                    # restore entries sit past the scored range: take their slots out of the evictable area, as in
+                    # the prototype (eviction.ov_select: keep (max_cache - start - recent - n_restore) // block blocks)
+                    fixed = args.start + args.recent
+                    mc = fixed + max(1, (mc - fixed - len(restore_ids)) // args.block) * args.block   # GenAI needs >= 1 block
+                jobs.setdefault(mc, []).append((idx, row, v, b, ids))
 
-    stop_ids = {tok.convert_tokens_to_ids(t) for t in ("<|im_end|>", "<|endoftext|>")}
+    # end-of-turn tokens of Qwen3 and Llama-3.1 (only those the tokenizer knows)
+    stop_ids = {i for i in (tok.convert_tokens_to_ids(t) for t in ("<|im_end|>", "<|endoftext|>", "<|eot_id|>",
+                                                                   "<|end_of_text|>")) if i is not None and i != tok.unk_token_id}
     props = {"KV_CACHE_PRECISION": "f16", "CACHE_DIR": str(ROOT / "build/ov_cache")}
     if args.device == "GPU":
         props["ACTIVATIONS_SCALE_FACTOR"] = "8"     # some adapters overflow fp16 in the restore tokens' LoRA
+    n_requests = 0
     with rows_path.open("a") as fout:
         for mc, items in sorted(jobs.items(), key=lambda kv: kv[0] or 0):
+            if args.max_requests and n_requests >= args.max_requests:
+                break
             sc = g.SchedulerConfig()
             sc.cache_size = args.cache_gb
             sc.max_num_batched_tokens = args.max_batched_tokens
@@ -124,13 +157,25 @@ def main():
             print(f"max_cache_size {mc}: pipeline ready in {time.perf_counter() - t0:.0f}s, {len(items)} requests",
                   flush=True)
             for idx, row, v, b, ids in items:
+                if args.max_requests and n_requests >= args.max_requests:
+                    break
+                n_requests += 1
                 gc = g.GenerationConfig()
                 gc.max_new_tokens = int(row["max_new_tokens"])
                 gc.stop_token_ids = stop_ids
+                n_forced = prompts[idx]["Q"] if args.query_blind else 0
+                if args.query_blind and args.restore_order == "exact" and v == "ov+R":
+                    n_forced += len(restore_ids)     # restore tokens are fed as forced tokens before the question
+                if n_forced:          # the question is emitted as the first generated tokens (the patched sampler
+                    gc.max_new_tokens += n_forced     # ignores stop tokens inside it)
                 t0 = time.perf_counter()
                 res = pipe.generate([ov.Tensor(ids[None])], [gc])[0]
                 wall = time.perf_counter() - t0
                 gen = list(res.m_generation_ids[0])
+                if n_forced:
+                    gen = gen[n_forced:]
+                    cut = next((i for i, t in enumerate(gen) if t in stop_ids), len(gen))
+                    gen = gen[:cut]
                 pred = tok.decode([t for t in gen if t not in stop_ids], skip_special_tokens=True)
                 score = string_match(row["task"], pred, list(row["answer"]))
                 rec = {"idx": idx, "task": row["task"], "variant": v, "budget": b, "max_cache_size": mc,

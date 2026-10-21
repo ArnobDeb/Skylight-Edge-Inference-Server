@@ -20,7 +20,10 @@ decoding (unchanged)
 | `export_genai_model.py` | writes a GenAI model folder: restore tokens as token ids, token-gated LoRA, rt_info naming the restore tokens |
 | `check_export.py` | exported model vs the Python prototype on one sample (plain ids identical; restore tokens in the prompt = restore pass) |
 | `genai_ruler_eval.py` | RULER-4K through `ContinuousBatchingPipeline`: OpenVINO eviction vs + RestoreKV, five budgets, full-cache reference |
+| `genai_ruler_eval.py --query-blind` | the same RULER evaluation under the RestoreKV paper's **question-blind** protocol (evict after the document, before the question; `--restore-order inside|exact`) |
 | `genai_throughput.py` | TTFT, TPOT, tokens/s and memory: fixed input, 128-2048 output tokens, batch 1/4/8, full vs eviction vs + RestoreKV |
+| `decode_scaling.py` | Experiment 3: 4K input, 128-16K output, batch 1 (+ batch 8), full / eviction / + RestoreKV, with the experiment-2 metrics (TTFT, TPOT, throughput, durations, RSS, swap, disk reads, page faults, KV held, GPU memory) and the generated tokens |
+| `output_agreement.py` | Experiment 3B: how long / how closely the evicted outputs follow the full-cache output |
 
 Build the patched GenAI against the installed OpenVINO 2026.4.1:
 
@@ -34,7 +37,17 @@ cmake --build build -j 6
 export PYTHONPATH=$PWD/build            # use this openvino_genai for the scripts below
 ```
 
-Protocol difference to the prototype: GenAI evicts at the first decode step, after the question has been read
-(its SnapKV window is the last 8 prompt tokens, i.e. the end of the question), so absolute scores are much higher
-than in the question-blind prototype; the comparison that matters is without vs with RestoreKV under the same eviction.
-Results: `results/genai_integration/`, summary in `docs/RESULTS.md` §7.
+### Two protocols
+
+- **Question-aware** (GenAI as shipped, the default): the prompt `[document][restore ids][question]` is prefilled
+  in one go, OpenVINO evicts at the first decode step with its SnapKV window on the end of the question, and keeps
+  evicting while generating. Absolute scores are high because the scorer has seen the question.
+- **Question-blind** (RestoreKV paper / prototype, opt-in): set `RESTOREKV_QUERY_BLIND=1` (or use
+  `genai_ruler_eval.py --query-blind`). The prompt `[document][SEP][question]` (SEP = first restore id + 8) is cut at
+  SEP; the document is prefilled and evicted once with the window on the document's end; the question is then fed
+  token by token on the evicted cache, and nothing more is evicted. `RESTOREKV_QUERY_BLIND=2`
+  (`--restore-order exact`) additionally feeds the restore tokens after the document prefill and keeps their
+  attention out of the scores, exactly the prototype's order.
+
+Compare without vs with RestoreKV within one protocol. Results: `results/genai_integration/`, summary in
+`docs/RESULTS.md` §7 (accuracy, both protocols) and §8 (Experiment 3). Dashboard: `streamlit run dashboard/app_experiment3.py`.

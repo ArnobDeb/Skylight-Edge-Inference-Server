@@ -167,22 +167,48 @@ model was checked against the prototype on a 5,127-token sample: with plain toke
 original model, and with the restore tokens in the prompt the same restore entries (relative difference <= 1.3%) and
 the same answer as the prototype's restore pass.
 
-RULER-4K, 130 samples, OpenVINO H2O (NORM_SUM, SnapKV window 8, start/recent 32, 16-token blocks), H2O adapter.
-Full cache **93.1** (identical to the prototype).
+### 7.1 Two protocols
 
-| Budget | OpenVINO eviction | + RestoreKV | Gain | 95% interval | Better / worse |
+| | Question-blind (RestoreKV paper, prototype) | Question-aware (OpenVINO GenAI default) |
+|---|---|---|
+| Compression happens | once, right after the document | after the whole prompt (document + question) |
+| OpenVINO's scoring window (last 8 prompt tokens) | the end of the document | the end of the question / chat template |
+| The question is read | on the compressed cache | before compression, on the full cache |
+| Later evictions while generating | none (as in the paper) | whenever the cache exceeds the budget |
+| Use case | compress a document once, reuse it for many questions | one question per document |
+| Comparable with | the paper, the prototype (§1) | only itself |
+
+Stock GenAI only does question-aware eviction. The question-blind runs use an opt-in mode added to the patched
+pipeline (`RESTOREKV_QUERY_BLIND=1`): the prompt `[document][SEP][question]` is prefilled up to SEP, evicted once
+with the window on the document's end, and the question is then fed token by token on the evicted cache. In this
+"inside order" variant the 8 restore tokens sit just before the last 8 document tokens, so that both variants are
+scored from the same window. A second variant that follows the prototype's order exactly (restore tokens fed after
+the document prefill and excluded from the scores, `RESTOREKV_QUERY_BLIND=2`) is in the branch as well.
+
+### 7.2 Accuracy, Qwen3-8B, RULER-4K 130 samples
+
+OpenVINO H2O (NORM_SUM, SnapKV window 8, start/recent 32, 16-token blocks), H2O adapter. Full cache **93.1**
+(identical to the prototype). Paired gain of RestoreKV with 95% bootstrap interval and samples better / worse:
+
+| Budget | Prototype, question-blind | **GenAI, question-blind** | gain | **GenAI, question-aware** | gain |
 |---|---|---|---|---|---|
-| 2.5% | 10.5 | 10.2 | −0.3 | [−3.3, +2.3] | 9 / 5 |
-| 5% | 49.6 | 53.5 | +4.0 | [+0.9, +7.5] | 18 / 6 |
-| 10% | 67.6 | 72.3 | +4.7 | [+1.5, +8.3] | 21 / 8 |
-| 15% | 75.3 | 81.3 | +6.0 | [+2.1, +10.2] | 18 / 6 |
-| 25% | 80.7 | **89.7** | **+9.1** | [+4.6, +13.9] | 19 / 3 |
+| 2.5% | 4.9 → 6.8 | 4.9 → 9.1 | +4.2 [+2.1, +6.7], 16 / 0 | 10.5 → 10.2 | −0.3 [−3.3, +2.3], 9 / 5 |
+| 5% | 15.1 → 16.6 | 17.1 → 22.2 | +5.1 [+1.0, +9.5], 17 / 5 | 49.6 → 53.5 | +4.0 [+0.9, +7.5], 18 / 6 |
+| 10% | 32.7 → 34.8 | 33.9 → 38.2 | +4.2 [+0.7, +8.0], 19 / 5 | 67.6 → 72.3 | +4.7 [+1.5, +8.3], 21 / 8 |
+| 15% | 43.8 → 49.8 | 42.3 → 52.7 | +10.4 [+5.4, +15.9], 29 / 7 | 75.3 → 81.3 | +6.0 [+2.1, +10.2], 18 / 6 |
+| 25% | 61.2 → 64.8 | 60.9 → 67.4 | +6.5 [+0.6, +12.3], 27 / 11 | 80.7 → 89.7 | +9.1 [+4.6, +13.9], 19 / 3 |
 
-GenAI evicts at the first decode step, after the question has been read (its SnapKV window covers the end of the
-question), whereas the paper and the prototype evict before the question. Absolute scores are therefore much higher
-than in §1; compare without vs with RestoreKV within this table.
+- Question-blind: plain eviction inside GenAI reproduces the prototype within 1–2 points at every budget, and
+  RestoreKV's gain is above sampling noise at all five budgets.
+- Question-aware: absolute scores are much higher (the scorer knows the question); RestoreKV still adds +4 to +9
+  points from 5% to 25%, although its adapter was trained for the question-blind setting.
 
-Speed and memory in the same pipeline (4K input, total decode tokens/s over all sequences):
+Runs: `results/genai_integration/2026-10-18_genai_ruler4k_qblind_n10` (question-blind),
+`..._2026-10-17_genai_ruler4k_n10` and `..._n10_full` (question-aware, full cache).
+
+### 7.3 Speed and memory, Qwen3-8B (4K input, question-aware)
+
+Total decode tokens/s over all sequences:
 
 | Batch | Output tokens | Full cache | Eviction 10% | + RestoreKV |
 |---|---|---|---|---|
@@ -199,3 +225,60 @@ Speed and memory in the same pipeline (4K input, total decode tokens/s over all 
 - Process GPU memory is about the same in all configurations, because GenAI reserves its cache pool up front and
   each prompt must fit whole before the first eviction; after eviction a 4K sequence uses 56 MB of cache instead of
   0.6–0.9 GB, which is where the speed-up at batch 4–8 comes from.
+
+## 8. Experiment 3: decode scaling in GenAI, three models
+
+The design of `openvino_benchmarking`'s experiment 2 (fixed input, growing output), now with eviction and RestoreKV:
+4K-token input from RULER-4K documents with a report request, 128 → 16K generated tokens (`ignore_eos`), GenAI
+default eviction (question-aware, continuous) at 10% of the input. Models: Qwen3-8B, Qwen3-4B, Llama-3.1-8B-Instruct,
+each with an adapter trained for OpenVINO H2O (`artifacts/adapters/ovblock_*`). Script
+`experiments/genai_integration/decode_scaling.py`; results `results/genai_integration/2026-10-20_decode_scaling_*`.
+
+### 8.1 Latency, throughput, memory (batch 1)
+
+Time per output token (ms) / tokens/s / KV cache held per sequence:
+
+| Output | Qwen3-8B full | eviction | + RestoreKV | Qwen3-4B full | eviction | + RestoreKV | Llama full | eviction | + RestoreKV |
+|---|---|---|---|---|---|---|---|---|---|
+| 128 | 187 / 4.11 / 594 MB | 212 / 3.31 / 58 MB | 213 / 3.37 / 58 MB | 120 / 6.01 / 594 MB | 121 / 5.21 / 58 MB | 114 / 5.65 / 58 MB | 228 / 3.32 / 528 MB | 224 / 3.09 / 52 MB | 211 / 3.40 / 52 MB |
+| 1K | 216 / 4.48 / 720 MB | 210 / 4.53 / 58 MB | 208 / 4.57 / 58 MB | 116 / 8.32 / 720 MB | 109 / 8.57 / 58 MB | 110 / 8.50 / 58 MB | 213 / 4.54 / 640 MB | 210 / 4.53 / 52 MB | 209 / 4.56 / 52 MB |
+| 4K | 217 / 4.56 / 1.12 GB | 218 / 4.54 / 58 MB | 208 / 4.74 / 58 MB | 118 / 8.41 / 1.12 GB | 109 / 9.03 / 58 MB | 110 / 8.92 / 58 MB | 215 / 4.62 / 1.00 GB | 212 / 4.66 / 52 MB | 208 / 4.75 / 52 MB |
+| 8K | 221 / 4.50 / 1.69 GB | 210 / 4.74 / 58 MB | 208 / 4.77 / 58 MB | 121 / 8.20 / 1.69 GB | 109 / 9.11 / 58 MB | 114 / 8.68 / 58 MB | 218 / 4.57 / 1.50 GB | 210 / 4.72 / 52 MB | 208 / 4.78 / 52 MB |
+| 16K | 228 / 4.37 / 2.81 GB | 210 / 4.76 / 58 MB | 210 / 4.75 / 58 MB | 129 / 7.73 / 2.81 GB | 111 / 8.95 / 58 MB | 110 / 9.01 / 58 MB | 224 / 4.45 / 2.50 GB | 210 / 4.74 / 52 MB | 208 / 4.80 / 52 MB |
+
+All lengths (128, 256, 512, 1K, 2K, 4K, 8K, 16K) are in the dashboard and each run's `results.csv`.
+
+- The full cache grows with every token (to 2.6–2.9 GB per sequence at 16K output) and its time per token rises with
+  it; with eviction the cache stays at 52–58.5 MB (−98%) and the time per token stays flat, so from ~1K output on
+  eviction is faster (−6% to −14% per token at 16K).
+- Below ~1K output eviction is slightly slower (scoring work, little cache to save), and its time to first token is
+  ~3 s longer (fused prefill kernels off with eviction on the iGPU).
+- RestoreKV runs at the speed and memory of plain eviction for every model and length.
+
+### 8.2 Batch 8 (total tokens/s)
+
+| Model | Output | Full cache | Eviction | + RestoreKV |
+|---|---|---|---|---|
+| Qwen3-8B | 2K | 19.7 | 26.3 | 26.6 |
+| Qwen3-8B | 8K | does not fit | 30.5 | 30.1 |
+| Qwen3-4B | 2K | 28.4 | 47.8 | 48.1 |
+| Qwen3-4B | 8K | 25.1 | 56.0 | 55.9 |
+
+Eight sequences share every read of the weights, and the evicted caches are small, so more of them fit and they decode
+faster together: up to 2.2× the full cache's throughput (Qwen3-4B, 8K output). Llama-3.1-8B batch-8 points: see
+`results/genai_integration/2026-10-20_decode_scaling_llama3.1-8b`.
+
+### 8.3 How close the evicted outputs stay to the full-cache output
+
+Same prompt, greedy decoding: "identical prefix" = tokens generated before the first difference from the full-cache
+output; "4-gram overlap" = F1 of shared 4-token phrases (position-independent). One prompt per model, so this is an
+illustration rather than a statistical result; accuracy is measured by RULER (§7.2).
+
+| Model | Identical prefix, eviction / + RestoreKV | 4-gram overlap at 128 tokens | at 16K tokens |
+|---|---|---|---|
+| Qwen3-8B | 7 / **40** | 0.19 / **0.44** | 0.005 / 0.014 |
+| Qwen3-4B | 11 / **23** | 0.26 / 0.27 | 0.004 / 0.006 |
+| Llama-3.1-8B | 30 / 0* | 0.46 / 0.47 | 0.035 / 0.020 |
+
+\* The Llama output with RestoreKV is the same text without a leading `**` markdown marker, so its first token
+differs. Per-length tables: `agreement.csv` in each run folder.

@@ -7,6 +7,8 @@
 | `run_throughput.sh` | `results/eviction_study/*_throughput_memory` |
 | `run_genai_ruler4k.sh` | `results/genai_integration/*_genai_ruler4k_n10*` (inside OpenVINO GenAI) |
 | `run_genai_throughput.sh` | `results/genai_integration/*_genai_throughput_*` |
+| `run_genai_question_blind.sh` | `results/genai_integration/*_genai_ruler4k_qblind*` (question-blind protocol) |
+| `run_experiment3.sh` | `results/genai_integration/*_decode_scaling_*` (Experiment 3, three models) |
 | `run_long_context.sh` | `results/eviction_study/*_loft32k_*`, `*_ruler32k_*` |
 | `long_context/generate_ruler.sh` | RULER-32K data in `artifacts/data/ruler/` |
 | `long_context/build_loft.py` | LOFT-32K prompts in `artifacts/data/loft_qwen/` (download the LOFT datasets first, see the script) |
