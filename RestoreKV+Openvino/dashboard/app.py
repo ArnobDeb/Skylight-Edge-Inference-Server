@@ -110,7 +110,7 @@ if len(paired):
         if len(g):
             best = g.loc[g.gain.idxmax()]
             col.metric(f"{lab}", f"{best.gain:+.1f} pts", f"{best.ov:.1f} → {best['ov+R']:.1f} at {C.pct(best.budget)}",
-                       delta_color="off", delta_arrow="off",
+                       delta_color="off",
                        help=f"Best RestoreKV gain over plain OpenVINO eviction, Qwen3-8B, 130 samples. Significant at "
                             f"{int((g.lo > 0).sum())} of {len(g)} budgets (95% interval above 0).")
 if len(dec):

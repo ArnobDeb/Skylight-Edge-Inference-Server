@@ -197,6 +197,7 @@ def genai_ruler() -> pd.DataFrame:
         if df.empty:
             continue
         df["protocol"], df["model"], df["run"] = protocol_of(d.name), model_of(d.name), d.name
+        df["budget"] = pd.to_numeric(df["budget"], errors="coerce").astype(float)   # all-NaN for full-cache runs
         frames.append(df[["idx", "task", "variant", "budget", "score", "protocol", "model", "run"]])
     if not frames:
         return pd.DataFrame()
