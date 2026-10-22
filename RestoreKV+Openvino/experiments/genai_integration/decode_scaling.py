@@ -1,4 +1,4 @@
-"""Experiment 3A/3B: decode scaling inside OpenVINO GenAI, the openvino_benchmarking "experiment 2" design
+"""Decode scaling inside OpenVINO GenAI, the openvino_benchmarking decode-sweep design
 with KV-cache eviction and RestoreKV.
 
 Fixed input: 4K tokens of a real RULER-4K document (chat template, document, a summarisation request); generated
@@ -9,10 +9,10 @@ configurations on the same prompt, GenAI's default (question-aware, continuous) 
     ov+R    the same + RestoreKV (8 restore tokens before the request, protected; patched GenAI)
 Batch 1 for the sweep; --batch8-outputs adds batch-8 points.
 
-Per point (one CSV row) the experiment-2 metrics: TTFT, TPOT, throughput, generate / inference duration (GenAI
+Per point (one CSV row) the openvino_benchmarking metrics: TTFT, TPOT, throughput, generate / inference duration (GenAI
 PerfMetrics), wall time and wall tokens/s, process RSS before / after / peak, process swap, process disk reads,
 system swap-in / swap-out and major page faults (deltas), analytical KV estimate; plus the process's GPU memory
-(peak drm-total-gtt) and the KV entries actually held per sequence. The generated token ids are saved for 3B
+(peak drm-total-gtt) and the KV entries actually held per sequence. The generated token ids are saved for the agreement analysis
 (agreement with the full-cache output).
 
     PY=<openvino.genai fork build dir>

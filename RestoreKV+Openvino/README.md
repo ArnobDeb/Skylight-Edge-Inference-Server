@@ -63,7 +63,6 @@ only in **when** the KV cache is compressed:
 |---|---|---|---|
 | **Question-blind** (RestoreKV paper, our prototype) | right after the document, before the question is seen; the question is read on the compressed cache | compress a document once, reuse it for many questions | the paper |
 | **Question-aware** (OpenVINO GenAI default, as shipped) | after the whole prompt, document **and** question, has been read; OpenVINO's scorer looks from the end of the question | one question per document | itself only |
-| **Blind → continuous** (hybrid, new, running) | once after the document, then GenAI keeps evicting while the answer is written | compress once, then generate at length with a capped cache | question-blind |
 
 Question-aware scores are much higher, because the scorer already knows what will be asked. Within each protocol the
 fair comparison is eviction vs eviction + RestoreKV at the same budget.
@@ -90,10 +89,12 @@ Bold: RestoreKV's gain is significant (paired 95% bootstrap interval above 0).
   (+4.2 to +10.4).
 - **Question-aware:** RestoreKV adds +3.9 to +9.1 points from 5% to 25% (above noise), at the same speed and memory.
 - **Other models (question-aware):** Qwen3-4B with its own adapter gains +8.2 / +6.4 / +5.0 points at 10 / 15 / 25%
-  (67.9 → 76.1, 76.2 → 82.6, 82.4 → 87.3; significant; full cache 92.2); Llama-3.1-8B is running. [docs/RESULTS.md](docs/RESULTS.md) §7.4.
+  (67.9 → 76.1, 76.2 → 82.6, 82.4 → 87.3; significant; full cache 92.2), Llama-3.1-8B +8.3 / +7.3 at 5 / 10%
+  (50.3 → 58.7, 69.3 → 76.6). At 2.5% the restore slots crowd out the document for every model:
+  [docs/RESULTS.md](docs/RESULTS.md) §7.4.
 - Full cache 93.1 in both the prototype and GenAI.
 
-### Experiment 3: decode scaling in GenAI, three models
+### Decode scaling in GenAI, three models
 
 4K-token input (RULER-4K text), 128 → 16K generated tokens, GenAI default eviction (question-aware, keeps evicting
 while generating) at 10%, batch 1 and batch 8; Qwen3-8B, Qwen3-4B and Llama-3.1-8B-Instruct, each with its own
@@ -110,7 +111,7 @@ at 2K output 19.7 → 26.3 / 26.6 and Llama-3.1-8B 20.2 → 26.9 / 27.5 (at 8K o
 and 30.6 / 30.6). The full cache's time per token
 grows with the output, the evicted one stays flat; RestoreKV runs at the speed and memory of plain eviction. Details,
 including how close the evicted outputs stay to the full-cache output: [docs/RESULTS.md](docs/RESULTS.md) §8.
-Interactive: `streamlit run dashboard/app_experiment3.py`.
+Interactive: `streamlit run dashboard/app_genai.py`.
 
 Details and all tables: [docs/RESULTS.md](docs/RESULTS.md). How the code drives OpenVINO: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -186,7 +187,7 @@ experiments/
 benchmarks/              launch scripts, long-context data generation (RULER-32K, LOFT-32K), INT8 model export
 profiling/               speed / memory measurements of the OpenVINO pipeline on the iGPU
 results/                 one folder per run (config.json, results.jsonl, summary.csv)
-dashboard/               Streamlit dashboards (app.py: prototype; app_experiment3.py: GenAI, Experiment 3)
+dashboard/               Streamlit dashboards (app.py: summary; app_genai.py: GenAI decode scaling and accuracy)
 docs/                    ARCHITECTURE.md, RESULTS.md
 artifacts/adapters/      trained adapters used in the results
 ```

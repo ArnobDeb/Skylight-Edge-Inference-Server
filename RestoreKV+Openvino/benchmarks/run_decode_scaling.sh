@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Experiment 3: decode scaling inside OpenVINO GenAI for three models (4K input, 128-16K output, batch 1 + batch 8 at
+# Decode scaling inside OpenVINO GenAI for three models (4K input, 128-16K output, batch 1 + batch 8 at
 # 2K/8K; full cache vs eviction 10% vs + RestoreKV), then the output-agreement tables. Needs the patched build on
 # PYTHONPATH, the OpenVINO models in ../models and the adapters in artifacts/adapters/ovblock_<model>/.
 set -u
 cd "$(dirname "$0")/.."
 : "${PYTHONPATH:?set PYTHONPATH to the patched openvino.genai build (see experiments/genai_integration/README.md)}"
 mkdir -p results/genai_integration/logs
-LOG=results/genai_integration/logs/experiment3.log
+LOG=results/genai_integration/logs/decode_scaling.log
 for spec in "qwen3-8b ../models/qwen3-8b-fp16-ov" "qwen3-4b ../models/qwen3-4b-fp16-ov" \
             "llama3.1-8b ../models/llama-3.1-8b-instruct-fp16-ov"; do
   set -- $spec

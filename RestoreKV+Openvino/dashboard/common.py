@@ -1,4 +1,4 @@
-"""Shared look and data loaders for the three dashboards (app.py, app_detailed.py, app_experiment3.py).
+"""Shared look and data loaders for the dashboards.
 
 Look: one light theme (Streamlit config in .streamlit/config.toml + a Plotly template registered here), one colour
 per role used everywhere: full cache = neutral grey, OpenVINO eviction = orange, + RestoreKV = blue, the hybrid
@@ -251,7 +251,7 @@ def paired_table(df: pd.DataFrame, n_boot: int = 10000, seed: int = 0) -> pd.Dat
 
 @st.cache_data(ttl=60)
 def decode_scaling() -> pd.DataFrame:
-    """Experiment 3A rows; `protocol` = aware (GenAI default) or hybrid (question-blind, then continuous)."""
+    """Decode-scaling rows; `protocol` = aware (GenAI default) or hybrid (question-blind, then continuous)."""
     frames = []
     for d in sorted(STAGE4().glob("*_decode_scaling_*")):
         f = d / "results.csv"

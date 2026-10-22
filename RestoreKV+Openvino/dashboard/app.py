@@ -2,7 +2,7 @@
 
 What RestoreKV adds on top of OpenVINO's own KV-cache eviction at the same memory budget: first in the Python
 prototype, then inside the real OpenVINO GenAI pipeline (both evaluation protocols), plus the speed and memory of
-long generations (Experiment 3). Reads the result folders under results/ live, so runs still going appear on refresh.
+long generations. Reads the result folders under results/ live, so runs still going appear on refresh.
 
     conda activate arnob
     cd RestoreKV+Openvino && env -u PYTHONPATH streamlit run dashboard/app.py
@@ -74,7 +74,7 @@ if st.sidebar.button("Reload data"):
 st.sidebar.caption("Data refreshes every minute. "
                    + ("The detailed dashboard (app_detailed.py) has every prototype run; "
                       if (C.ROOT / "dashboard/app_detailed.py").exists() else "")
-                   + "app_experiment3.py has all of Experiment 3.")
+                   + "app_genai.py has the GenAI decode-scaling runs.")
 
 
 def pair_bars(q: pd.DataFrame, protos: list[str], height: int = 430):
@@ -187,7 +187,6 @@ restore tokens and keep their KV blocks. Changes in the GenAI fork (`restorekv-2
 | Protection | `cache_eviction.cpp` | blocks holding restore tokens get the highest score, are never evicted, and are tracked as blocks move |
 | Question-blind mode | `pipeline_impl.cpp`, `sampler.cpp` | the prompt is split at a separator: the document is prefilled and evicted once, the question is fed afterwards on the compressed cache |
 | Exact order | `pipeline_impl.cpp` | the restore tokens run after the document on the full cache, their attention is kept out of the scores, eviction follows the 8th |
-| Hybrid (new) | `pipeline_impl.cpp` | question-blind first, then GenAI's normal continuous eviction while the answer is written |
 """)
     if len(paired):
         q = paired[paired.model == "qwen3-8b"]
@@ -210,7 +209,6 @@ with tabs[2]:
         for col, (m, lab) in zip(cols, C.MODELS.items()):
             g = a[a.model == m]
             if g.empty:
-                col.info(f"{lab}: running, appears here when the first budget finishes.")
                 continue
             long = g.melt(id_vars=["budget", "full"], value_vars=["ov", "ov+R"], var_name="v", value_name="score")
             long["Configuration"] = long["v"].map({"ov": "OpenVINO eviction", "ov+R": "Eviction + RestoreKV"})
@@ -231,7 +229,7 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("Long generations: 4K-token input, 128 → 16K output tokens")
     if dec.empty:
-        st.info("No Experiment 3 runs yet.")
+        st.info("No decode-scaling runs yet.")
     else:
         names = {"full": "Full cache", "ov": "OpenVINO eviction 10%", "ov+R": "Eviction 10% + RestoreKV"}
         colors = {"Full cache": C.FULL, "OpenVINO eviction 10%": C.EVICT, "Eviction 10% + RestoreKV": C.RKV}

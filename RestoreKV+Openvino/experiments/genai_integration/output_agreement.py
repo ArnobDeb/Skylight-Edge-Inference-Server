@@ -1,4 +1,4 @@
-"""Experiment 3B: how close do evicted generations stay to the full-cache generation?
+"""How close do evicted generations stay to the full-cache generation?
 
 Reads the generations.jsonl written by decode_scaling.py (same prompt, greedy decoding, ignore_eos) and compares,
 for every output length and batch-1 point, the `ov` and `ov+R` token sequences with the `full` one:

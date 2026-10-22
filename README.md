@@ -52,7 +52,7 @@ From `RestoreKV+Openvino`:
     (+1.7 to +6.1);
   - **question-aware** (GenAI's default: compressed after reading the question): +3.9 to +9.1 points from 5% to 25%
     (80.7 → 89.7 at 25%).
-- Experiment 3 (decode scaling, Qwen3-8B / Qwen3-4B / Llama-3.1-8B, 4K input, 128 → 16K output): eviction caps the
+- Decode scaling (Qwen3-8B / Qwen3-4B / Llama-3.1-8B, 4K input, 128 → 16K output): eviction caps the
   KV cache at 52–58.5 MB per sequence (−98% vs 2.6–2.9 GB), keeps the time per token flat (−6% to −14% at 16K) and
   raises batch-8 throughput by about a third for the 8B models and more than doubles it for Qwen3-4B (25 → 56
   tokens/s); RestoreKV costs no speed or memory.

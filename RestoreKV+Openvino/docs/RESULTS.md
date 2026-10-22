@@ -188,10 +188,6 @@ cache. Two placements of the restore tokens are implemented:
 | **Inside order** (`=1`) | `[doc minus last 8][restore ×8][last 8 doc][SEP][question]` | inside the single document prefill | last 8 document tokens (same as plain eviction) | after the prefill; restore block protected |
 | **Exact order** (`=2`) | `[doc][SEP][restore ×8][question]` | after the prefill, one token per step on the full cache, not scored | last 8 document tokens | after the 8th restore token, as in the prototype |
 
-A third mode, **question-blind then continuous** (`=3`, "hybrid"), evicts once after the document like the inside
-order and then lets GenAI's normal continuous eviction run while the answer is generated, so the cache stays capped
-for long outputs; its runs are in progress.
-
 ### 7.2 Accuracy, Qwen3-8B, RULER-4K 130 samples
 
 OpenVINO H2O (NORM_SUM, SnapKV window 8, start/recent 32, 16-token blocks), H2O adapter. Full cache **93.1**
@@ -239,28 +235,33 @@ Total decode tokens/s over all sequences:
   each prompt must fit whole before the first eviction; after eviction a 4K sequence uses 56 MB of cache instead of
   0.6–0.9 GB, which is where the speed-up at batch 4–8 comes from.
 
-### 7.4 Other models in GenAI (Experiment 3C, question-aware)
+### 7.4 Other models in GenAI (question-aware)
 
 The same pipeline and protocol as the question-aware column of §7.2, with each model's own adapter (trained with the
 same recipe against OpenVINO H2O). RULER-4K, 130 samples, paired gain [95% interval], samples better / worse:
 
 | Budget | Qwen3-4B: eviction → + RestoreKV | gain | Llama-3.1-8B: eviction → + RestoreKV | gain |
 |---|---|---|---|---|
-| 2.5% | 13.9 → 12.3 | −1.7 [−5.0, +1.4], 7 / 8 | running | |
-| 5% | 52.1 → 54.8 | +2.7 [−1.9, +7.5], 14 / 7 | | |
-| 10% | 67.9 → **76.1** | **+8.2** [+4.0, +12.9], 23 / 6 | | |
+| 2.5% | 13.9 → 12.3 | −1.7 [−5.0, +1.4], 7 / 8 | 23.9 → 15.4 | −8.5 [−15.5, −1.7], 7 / 21 |
+| 5% | 52.1 → 54.8 | +2.7 [−1.9, +7.5], 14 / 7 | 50.3 → **58.7** | **+8.3** [+3.8, +13.6], 18 / 6 |
+| 10% | 67.9 → **76.1** | **+8.2** [+4.0, +12.9], 23 / 6 | 69.3 → **76.6** | **+7.3** [+1.2, +13.5], 23 / 12 |
 | 15% | 76.2 → **82.6** | **+6.4** [+2.8, +10.7], 15 / 4 | | |
 | 25% | 82.4 → **87.3** | **+5.0** [+1.7, +8.8], 12 / 5 | | |
-| full cache | 92.2 | | running | |
+| full cache | 92.2 | | | |
 
-- Qwen3-4B follows Qwen3-8B: no gain at 2.5% (almost everything is evicted), significant gains from 10% to 25%,
-  the largest at 10% (+8.2, against +4.7 for Qwen3-8B).
+- Qwen3-4B follows Qwen3-8B: no gain at 2.5%, significant gains from 10% to 25%, the largest at 10% (+8.2, against
+  +4.7 for Qwen3-8B). Llama-3.1-8B gains significantly at 5% and 10% (+8.3, +7.3).
+- At 2.5% RestoreKV loses points for every model (Qwen3-8B −0.3, Qwen3-4B −1.7, Llama −8.5). The cache then holds
+  only 80–96 tokens, 64 of which are OpenVINO's fixed start and recent areas, leaving 1–2 blocks for the document;
+  the 8 restore tokens fall across two blocks in about half of the prompts, and their protected blocks take that
+  whole space. Plain eviction keeps the needle's block instead (Llama answers e.g. "8090293" without RestoreKV and
+  "809809…" with it). RestoreKV needs a budget larger than its own slots plus the fixed areas: from 5% on it helps.
 
 Runs: `results/genai_integration/2026-10-20_genai_ruler4k_n10_qwen3-4b`, `..._n10_full_qwen3-4b`.
 
-## 8. Experiment 3: decode scaling in GenAI, three models
+## 8. Decode scaling in GenAI, three models
 
-The design of `openvino_benchmarking`'s experiment 2 (fixed input, growing output), now with eviction and RestoreKV:
+The decode sweep of `openvino_benchmarking` (fixed input, growing output), now with eviction and RestoreKV:
 4K-token input from RULER-4K documents with a report request, 128 → 16K generated tokens (`ignore_eos`), GenAI
 default eviction (question-aware, continuous) at 10% of the input. Models: Qwen3-8B, Qwen3-4B, Llama-3.1-8B-Instruct,
 each with an adapter trained for OpenVINO H2O (`artifacts/adapters/ovblock_*`). Script

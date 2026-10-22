@@ -1,9 +1,9 @@
-"""Experiment 3 dashboard: RestoreKV inside OpenVINO GenAI on the Arc iGPU.
+"""RestoreKV inside OpenVINO GenAI on the Arc iGPU: decode scaling, output agreement and accuracy.
 
-    streamlit run dashboard/app_experiment3.py
+    streamlit run dashboard/app_genai.py
 
-3A decode scaling (4K input, 128-16K output; full cache vs OpenVINO eviction vs eviction + RestoreKV), 3B agreement
-of the evicted outputs with the full-cache output, and RULER-4K accuracy in the same pipeline under every protocol.
+Decode scaling (4K input, 128-16K output; full cache vs OpenVINO eviction vs eviction + RestoreKV), agreement of
+the evicted outputs with the full-cache output, and RULER-4K accuracy in the same pipeline under every protocol.
 Reads the run folders under results/genai_integration/ (or results/genai_integration/ in the published copy) live.
 """
 import json
@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "experiments/genai_integration"))
 sys.path.insert(0, str(ROOT / "experiments/genai_integration"))
 RES = C.STAGE4()
 
-C.page("Experiment 3 · RestoreKV in OpenVINO GenAI", "⚡")
+C.page("RestoreKV in OpenVINO GenAI", "⚡")
 
 CFG_NAME = {"full": "Full cache (GenAI baseline)", "ov": "OpenVINO eviction 10%", "ov+R": "Eviction 10% + RestoreKV"}
 CFG_COLOR = {CFG_NAME["full"]: C.FULL, CFG_NAME["ov"]: C.EVICT, CFG_NAME["ov+R"]: C.RKV}
@@ -78,8 +78,8 @@ def load_agreement():
 
 
 raw = C.decode_scaling()
-C.hero("Experiment 3 · OpenVINO GenAI on the Arc iGPU", "RestoreKV inside the real GenAI pipeline",
-       "The openvino_benchmarking experiment-2 design (fixed input, growing output), now with KV-cache eviction and "
+C.hero("Decode scaling · OpenVINO GenAI on the Arc iGPU", "RestoreKV inside the real GenAI pipeline",
+       "The openvino_benchmarking decode sweep (fixed input, growing output), now with KV-cache eviction and "
        "RestoreKV inside the ContinuousBatchingPipeline. A 4K-token RULER-4K document goes in; 128 → 16K tokens come "
        "out (ignore_eos). OpenVINO H2O eviction caps the cache at 10% of the input and keeps evicting while "
        "generating; RestoreKV's 8 slots come out of that same cap.",
@@ -109,7 +109,7 @@ st.sidebar.caption(f"{len(d1)} batch-1 points · {int((d['batch'] == 8).sum())} 
 if st.sidebar.button("Reload data"):
     st.cache_data.clear()
 
-tabs = st.tabs(["Overview", "Latency & throughput", "Memory", "Batching", "Output agreement (3B)", "Accuracy",
+tabs = st.tabs(["Overview", "Latency & throughput", "Memory", "Batching", "Output agreement", "Accuracy",
                 "Raw data"])
 
 with tabs[0]:
@@ -159,7 +159,7 @@ with tabs[2]:
     c_, e = st.columns(2)
     c_.plotly_chart(line(d1, "peak_rss_mb", "Process RSS, peak"), width="stretch")
     e.plotly_chart(line(d1, "min_mem_available_gb", "Lowest free system memory during the run"), width="stretch")
-    with st.expander("Swap, page faults and disk reads (experiment-2 counters)"):
+    with st.expander("Swap, page faults and disk reads"):
         for y in ("peak_swap_mb", "disk_read_mb", "sys_pswpin", "sys_pgmajfault"):
             st.plotly_chart(line(d1, y, METRIC[y], height=320), width="stretch")
         st.caption("System counters are system-wide deltas during the run; disk reads are this process's reads. Neither "
@@ -205,7 +205,11 @@ with tabs[4]:
                      width="stretch", hide_index=True)
 
 with tabs[5]:
-    st.markdown("""
+    ruler = pd.concat([x for x in (C.genai_ruler(), C.prototype_ruler()) if len(x)], ignore_index=True)
+    hybrid_row = ("| **Blind → continuous** (hybrid) | once after the document, then GenAI keeps evicting while the "
+                  "answer is written | compress once, then generate at length with a capped cache | question-blind |\n"
+                  if len(ruler) and (ruler["protocol"] == "hybrid").any() else "")
+    st.markdown(f"""
 **Read every protocol separately.** All use the same eviction scorer (OpenVINO H2O), budget and adapter; they differ
 only in *when* the cache is compressed:
 
@@ -213,11 +217,9 @@ only in *when* the cache is compressed:
 |---|---|---|---|
 | **Question-aware** (GenAI default, as shipped) | after the whole prompt, document **and question**; the scorer's last 8 tokens are the question | one question per document, answered once | itself only |
 | **Question-blind** (RestoreKV paper protocol) | after the **document**, before the question; the question is read on the compressed cache | compress once, reuse the cache for any question | the paper and the Python prototype |
-| **Blind → continuous** (hybrid, new) | once after the document, then GenAI keeps evicting while the answer is written | compress once, then generate at length with a capped cache | question-blind |
-
+{hybrid_row}
 *Inside order* and *exact order* are two ways of running the question-blind protocol in GenAI: restore tokens inside
 the document prefill, or fed after it on the full cache exactly as in the prototype.""")
-    ruler = pd.concat([x for x in (C.genai_ruler(), C.prototype_ruler()) if len(x)], ignore_index=True)
     if ruler.empty:
         st.info("No accuracy runs yet.")
     else:
@@ -277,4 +279,4 @@ the document prefill, or fed after it on the full cache exactly as in the protot
 
 with tabs[6]:
     st.dataframe(d.drop(columns=["out_label"]), width="stretch", hide_index=True)
-    st.download_button("Download CSV", d.to_csv(index=False), "experiment3_decode_scaling.csv")
+    st.download_button("Download CSV", d.to_csv(index=False), "genai_decode_scaling.csv")
