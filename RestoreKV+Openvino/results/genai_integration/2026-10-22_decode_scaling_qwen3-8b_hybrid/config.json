@@ -1,0 +1,20 @@
+{
+  "model": "artifacts/genai_models/qwen3-8b-fp16-restorekv-ovblock5000",
+  "tag": "qwen3-8b",
+  "device": "GPU",
+  "input_tokens": "4096",
+  "outputs": "128,256,512,1024,2048,4096,8192,16384",
+  "batch8_outputs": "",
+  "configs": "ov,ov+R",
+  "budget": "0.1",
+  "block": "16",
+  "date": "2026-10-22",
+  "mem_floor_gb": "1.5",
+  "hybrid": "True",
+  "gpu_limit_gb": "26.0",
+  "prompt_tokens": 4096,
+  "max_cache_size": 400,
+  "kv_bytes_per_token": 147456,
+  "openvino_genai": "/home/semix/apdesai_openvino_intel_mtp/RestoreKV+Openvino/<openvino.genai fork build dir>/openvino_genai/__init__.py",
+  "openvino": "2026.4.1-22982-e213a147257-releases/2026/4"
+}

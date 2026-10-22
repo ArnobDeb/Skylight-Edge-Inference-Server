@@ -20,7 +20,7 @@ decoding (unchanged)
 | `export_genai_model.py` | writes a GenAI model folder: restore tokens as token ids, token-gated LoRA, rt_info naming the restore tokens |
 | `check_export.py` | exported model vs the Python prototype on one sample (plain ids identical; restore tokens in the prompt = restore pass) |
 | `genai_ruler_eval.py` | RULER-4K through `ContinuousBatchingPipeline`: OpenVINO eviction vs + RestoreKV, five budgets, full-cache reference |
-| `genai_ruler_eval.py --query-blind` | the same RULER evaluation under the RestoreKV paper's **question-blind** protocol (evict after the document, before the question; `--restore-order inside|exact`) |
+| `genai_ruler_eval.py --query-blind` | the same RULER evaluation under the RestoreKV paper's **question-blind** protocol (evict after the document, before the question; `--restore-order inside|exact`, `--then-continuous`) |
 | `genai_throughput.py` | TTFT, TPOT, tokens/s and memory: fixed input, 128-2048 output tokens, batch 1/4/8, full vs eviction vs + RestoreKV |
 | `decode_scaling.py` | decode scaling: 4K input, 128-16K output, batch 1 (+ batch 8), full / eviction / + RestoreKV, with the openvino_benchmarking metrics (TTFT, TPOT, throughput, durations, RSS, swap, disk reads, page faults, KV held, GPU memory) and the generated tokens |
 | `output_agreement.py` | how long / how closely the evicted outputs follow the full-cache output |
@@ -47,7 +47,9 @@ export PYTHONPATH=$PWD/build            # use this openvino_genai for the script
   SEP; the document is prefilled and evicted once with the window on the document's end; the question is then fed
   token by token on the evicted cache, and nothing more is evicted. `RESTOREKV_QUERY_BLIND=2`
   (`--restore-order exact`) additionally feeds the restore tokens after the document prefill and keeps their
-  attention out of the scores, exactly the prototype's order.
+  attention out of the scores, exactly the prototype's order. `RESTOREKV_QUERY_BLIND=3` (`--then-continuous`, or
+  `decode_scaling.py --hybrid`) evicts once after the document like `=1`, nothing while the question is fed, then
+  GenAI's continuous eviction once the answer starts, so the cache stays capped during long outputs.
 
 Compare without vs with RestoreKV within one protocol. Results: `results/genai_integration/`, summary in
 `docs/RESULTS.md` §7 (accuracy, both protocols) and §8 (decode scaling). Dashboard: `streamlit run dashboard/app_genai.py`.

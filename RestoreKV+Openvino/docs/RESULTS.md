@@ -187,6 +187,7 @@ cache. Two placements of the restore tokens are implemented:
 |---|---|---|---|---|
 | **Inside order** (`=1`) | `[doc minus last 8][restore ×8][last 8 doc][SEP][question]` | inside the single document prefill | last 8 document tokens (same as plain eviction) | after the prefill; restore block protected |
 | **Exact order** (`=2`) | `[doc][SEP][restore ×8][question]` | after the prefill, one token per step on the full cache, not scored | last 8 document tokens | after the 8th restore token, as in the prototype |
+| **Question-blind, then continuous** (`=3`) | as inside order | inside the document prefill | last 8 document tokens, later the generated text | once after the document; none while the question is read; then GenAI's continuous eviction while the answer is generated, so the cache stays capped for long outputs |
 
 ### 7.2 Accuracy, Qwen3-8B, RULER-4K 130 samples
 
@@ -211,7 +212,24 @@ OpenVINO H2O (NORM_SUM, SnapKV window 8, start/recent 32, 16-token blocks), H2O 
 - **Question-aware:** absolute scores are much higher (the scorer knows the question); RestoreKV still adds +4 to +9
   points from 5% to 25%, although its adapter was trained for the question-blind setting.
 
+**Question-blind, then continuous eviction** (same samples and adapter): the document is compressed once before the
+question as above, and GenAI then keeps evicting while the answer is written (cache capped at the budget, question
+and answer included):
+
+| Budget | eviction → + RestoreKV | gain |
+|---|---|---|
+| 2.5% | 4.9 → **6.5** | **+1.6** [+0.1, +3.6], 8 / 1 |
+| 5% | 13.8 → 16.4 | +2.6 [−0.7, +6.1], 14 / 7 |
+| 10% | 34.4 → 36.9 | +2.5 [−1.6, +6.6], 19 / 9 |
+| 15% | 42.5 → **52.1** | **+9.5** [+4.2, +15.3], 30 / 10 |
+| 25% | 61.0 → **67.2** | **+6.2** [+0.3, +12.0], 27 / 9 |
+
+Close to the one-shot question-blind run at 15–25% and below it at 2.5–10%: the later evictions, scored from the
+question and answer, can only drop more, and the cap now also has to hold the question and the answer. This is the
+setting for long outputs on a compressed document (§8.1).
+
 Runs: `results/genai_integration/2026-10-18_genai_ruler4k_qblind_n10` (question-blind, inside order),
+`..._2026-10-22_genai_ruler4k_qblind_hybrid_n10` (question-blind, then continuous),
 `..._2026-10-20_genai_ruler4k_qblind_exact_n10` (exact order),
 `..._2026-10-17_genai_ruler4k_n10` and `..._n10_full` (question-aware, full cache).
 
@@ -288,6 +306,12 @@ All lengths (128, 256, 512, 1K, 2K, 4K, 8K, 16K) are in the dashboard and each r
 - Below ~1K output eviction is slightly slower (scoring work, little cache to save), and its time to first token is
   ~3 s longer (fused prefill kernels off with eviction on the iGPU).
 - RestoreKV runs at the speed and memory of plain eviction for every model and length.
+
+- **Question-blind, then continuous** (Qwen3-8B, the document compressed before the report request is read;
+  `2026-10-22_decode_scaling_qwen3-8b_hybrid`): the cache stays at 58.5 MB and the time per token flat as in the
+  default mode (16K output: 212 ms eviction, 205 ms + RestoreKV, against 228 ms full cache). On the one prompt, the
+  output with RestoreKV shares far more words with the full-cache output over long generations (unigram F1 0.18–0.24
+  from 2K tokens on, against 0.03–0.16 without) — an illustration, not a statistical result.
 
 ### 8.2 Batch 8 (total tokens/s)
 

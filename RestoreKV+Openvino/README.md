@@ -63,6 +63,7 @@ only in **when** the KV cache is compressed:
 |---|---|---|---|
 | **Question-blind** (RestoreKV paper, our prototype) | right after the document, before the question is seen; the question is read on the compressed cache | compress a document once, reuse it for many questions | the paper |
 | **Question-aware** (OpenVINO GenAI default, as shipped) | after the whole prompt, document **and** question, has been read; OpenVINO's scorer looks from the end of the question | one question per document | itself only |
+| **Question-blind, then continuous** | once after the document, then GenAI keeps evicting while the answer is written | compress once, then generate at length with a capped cache | question-blind |
 
 Question-aware scores are much higher, because the scorer already knows what will be asked. Within each protocol the
 fair comparison is eviction vs eviction + RestoreKV at the same budget.
@@ -88,6 +89,8 @@ Bold: RestoreKV's gain is significant (paired 95% bootstrap interval above 0).
   restore tokens inside the document prefill ("inside order") the gain is larger and significant at all five budgets
   (+4.2 to +10.4).
 - **Question-aware:** RestoreKV adds +3.9 to +9.1 points from 5% to 25% (above noise), at the same speed and memory.
+- **Question-blind, then continuous eviction** (cache capped during the answer too): +1.6 / +2.6 / +2.5 / +9.5 / +6.2,
+  significant at 2.5%, 15% and 25% (42.5 → 52.1 at 15%).
 - **Other models (question-aware):** Qwen3-4B with its own adapter gains +8.2 / +6.4 / +5.0 points at 10 / 15 / 25%
   (67.9 → 76.1, 76.2 → 82.6, 82.4 → 87.3; significant; full cache 92.2), Llama-3.1-8B +8.3 / +7.3 / +9.6 / +10.7
   at 5 / 10 / 15 / 25% (up to 81.3 → 92.0; full cache 96.3). At 2.5% the restore slots crowd out the document for every model:
