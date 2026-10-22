@@ -245,19 +245,20 @@ same recipe against OpenVINO H2O). RULER-4K, 130 samples, paired gain [95% inter
 | 2.5% | 13.9 → 12.3 | −1.7 [−5.0, +1.4], 7 / 8 | 23.9 → 15.4 | −8.5 [−15.5, −1.7], 7 / 21 |
 | 5% | 52.1 → 54.8 | +2.7 [−1.9, +7.5], 14 / 7 | 50.3 → **58.7** | **+8.3** [+3.8, +13.6], 18 / 6 |
 | 10% | 67.9 → **76.1** | **+8.2** [+4.0, +12.9], 23 / 6 | 69.3 → **76.6** | **+7.3** [+1.2, +13.5], 23 / 12 |
-| 15% | 76.2 → **82.6** | **+6.4** [+2.8, +10.7], 15 / 4 | | |
-| 25% | 82.4 → **87.3** | **+5.0** [+1.7, +8.8], 12 / 5 | | |
-| full cache | 92.2 | | | |
+| 15% | 76.2 → **82.6** | **+6.4** [+2.8, +10.7], 15 / 4 | 74.9 → **84.6** | **+9.6** [+3.8, +16.0], 23 / 10 |
+| 25% | 82.4 → **87.3** | **+5.0** [+1.7, +8.8], 12 / 5 | 81.3 → **92.0** | **+10.7** [+4.8, +17.1], 22 / 5 |
+| full cache | 92.2 | | 96.3 | |
 
 - Qwen3-4B follows Qwen3-8B: no gain at 2.5%, significant gains from 10% to 25%, the largest at 10% (+8.2, against
-  +4.7 for Qwen3-8B). Llama-3.1-8B gains significantly at 5% and 10% (+8.3, +7.3).
+  +4.7 for Qwen3-8B). Llama-3.1-8B gains significantly at every budget from 5% (+8.3 / +7.3 / +9.6 / +10.7),
+  the largest gains of the three models, reaching 92.0 against 96.3 with the full cache at 25%.
 - At 2.5% RestoreKV loses points for every model (Qwen3-8B −0.3, Qwen3-4B −1.7, Llama −8.5). The cache then holds
   only 80–96 tokens, 64 of which are OpenVINO's fixed start and recent areas, leaving 1–2 blocks for the document;
   the 8 restore tokens fall across two blocks in about half of the prompts, and their protected blocks take that
   whole space. Plain eviction keeps the needle's block instead (Llama answers e.g. "8090293" without RestoreKV and
   "809809…" with it). RestoreKV needs a budget larger than its own slots plus the fixed areas: from 5% on it helps.
 
-Runs: `results/genai_integration/2026-10-20_genai_ruler4k_n10_qwen3-4b`, `..._n10_full_qwen3-4b`.
+Runs: `results/genai_integration/2026-10-20_genai_ruler4k_n10_{qwen3-4b,llama3.1-8b}`, `..._n10_full_{qwen3-4b,llama3.1-8b}`.
 
 ## 8. Decode scaling in GenAI, three models
 

@@ -89,8 +89,8 @@ Bold: RestoreKV's gain is significant (paired 95% bootstrap interval above 0).
   (+4.2 to +10.4).
 - **Question-aware:** RestoreKV adds +3.9 to +9.1 points from 5% to 25% (above noise), at the same speed and memory.
 - **Other models (question-aware):** Qwen3-4B with its own adapter gains +8.2 / +6.4 / +5.0 points at 10 / 15 / 25%
-  (67.9 → 76.1, 76.2 → 82.6, 82.4 → 87.3; significant; full cache 92.2), Llama-3.1-8B +8.3 / +7.3 at 5 / 10%
-  (50.3 → 58.7, 69.3 → 76.6). At 2.5% the restore slots crowd out the document for every model:
+  (67.9 → 76.1, 76.2 → 82.6, 82.4 → 87.3; significant; full cache 92.2), Llama-3.1-8B +8.3 / +7.3 / +9.6 / +10.7
+  at 5 / 10 / 15 / 25% (up to 81.3 → 92.0; full cache 96.3). At 2.5% the restore slots crowd out the document for every model:
   [docs/RESULTS.md](docs/RESULTS.md) §7.4.
 - Full cache 93.1 in both the prototype and GenAI.
 
