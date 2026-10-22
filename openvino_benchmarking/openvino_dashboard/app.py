@@ -1,17 +1,19 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import theme as T  # noqa: E402
 
 
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
 
-st.set_page_config(
-    page_title="OpenVINO Benchmark Dashboard",
-    page_icon="⚡",
-    layout="wide"
-)
+T.page("OpenVINO benchmark", "⚡")
 
 
 # ============================================================
@@ -48,7 +50,7 @@ def validate_state(key, valid_options, fallback):
 # LOAD DATA
 # ============================================================
 
-CSV_PATH = "data/old_perf.csv"
+CSV_PATH = Path(__file__).resolve().parent / "data/old_perf.csv"
 
 df = pd.read_csv(CSV_PATH)
 
@@ -57,13 +59,15 @@ df = pd.read_csv(CSV_PATH)
 # HEADER
 # ============================================================
 
-st.title("⚡ OpenVINO Benchmark Dashboard")
-
-st.caption(
-    "LLM inference performance profiling on Intel AI PCs"
+T.hero(
+    "LLM inference on Intel AI PCs",
+    "OpenVINO benchmark",
+    "Time to first token, time per output token, throughput and durations of OpenVINO GenAI across models, "
+    "devices and prompt / output lengths. Pick a metric and how to slice it; every chart follows the filters "
+    "on the left.",
+    [f"{df['model'].nunique()} models", "devices: " + ", ".join(sorted(df["device"].dropna().unique())),
+     f"{len(df)} runs"],
 )
-
-st.divider()
 
 
 # ============================================================
@@ -83,7 +87,7 @@ categorical_columns = df.select_dtypes(
 # SIDEBAR FILTERS
 # ============================================================
 
-st.sidebar.header("Experiment Filters")
+st.sidebar.markdown("### Filters")
 
 
 # ------------------------------------------------------------
@@ -251,7 +255,7 @@ if selected_output_tokens:
 # DATASET SUMMARY
 # ============================================================
 
-st.subheader("Benchmark Overview")
+st.subheader("Overview")
 
 summary_col1, summary_col2, summary_col3, summary_col4 = (
     st.columns(4)
@@ -261,7 +265,7 @@ summary_col1, summary_col2, summary_col3, summary_col4 = (
 with summary_col1:
 
     st.metric(
-        "Experiments",
+        "Runs",
         len(filtered_df)
     )
 
@@ -296,14 +300,11 @@ with summary_col4:
     )
 
 
-st.divider()
-
-
 # ============================================================
 # PERFORMANCE VISUALIZATION
 # ============================================================
 
-st.subheader("Performance Visualization")
+st.subheader("Explore a metric")
 
 
 # ============================================================
@@ -323,9 +324,12 @@ with control_col1:
 
     if numeric_columns:
 
+        default_metric = next((c for c in ("throughput_tokens_per_second", "tpot_ms_per_token")
+                               if c in numeric_columns), numeric_columns[0])
+
         initialize_state(
             "metric",
-            numeric_columns[0]
+            default_metric
         )
 
         validate_state(
@@ -370,7 +374,7 @@ with control_col2:
 
     initialize_state(
         "x_axis",
-        x_axis_options[0]
+        "requested_input_tokens" if "requested_input_tokens" in x_axis_options else x_axis_options[0]
     )
 
     validate_state(
@@ -461,7 +465,7 @@ with control_col5:
 
     initialize_state(
         "compare_by",
-        "None"
+        "device" if "device" in compare_options else "None"
     )
 
     validate_state(
@@ -511,7 +515,7 @@ if not filtered_df.empty:
 
     if len(metric_values) > 0:
 
-        st.subheader("Selected Metric")
+        st.markdown(f"**{metric.replace('_', ' ').title()}** over the filtered runs")
 
         stat_col1, stat_col2, stat_col3, stat_col4 = (
             st.columns(4)
@@ -632,6 +636,12 @@ else:
 
         color_column = None
 
+    # colours follow the entity (model, device, ...), not its rank, so filtering never repaints a series
+    color_kw = {}
+    if color_column:
+        plot_df[color_column] = plot_df[color_column].astype(str)
+        color_kw = {"color_discrete_map": T.color_map(color_column, df[color_column].astype(str))}
+
 
     # ========================================================
     # X-AXIS DISPLAY
@@ -705,7 +715,8 @@ else:
             y=metric,
             color=color_column,
             barmode="group",
-            title=graph_title
+            title=graph_title,
+            **color_kw
         )
 
 
@@ -717,7 +728,8 @@ else:
             y=metric,
             color=color_column,
             markers=True,
-            title=graph_title
+            title=graph_title,
+            **color_kw
         )
 
 
@@ -728,7 +740,8 @@ else:
             x=plot_x,
             y=metric,
             color=color_column,
-            title=graph_title
+            title=graph_title,
+            **color_kw
         )
 
 
@@ -741,19 +754,6 @@ else:
         height=550,
 
         hovermode="x unified",
-
-        margin=dict(
-            l=40,
-            r=40,
-            t=80,
-            b=60
-        ),
-
-        title_x=0.02,
-
-        title_font=dict(
-            size=20
-        ),
 
         legend_title_text=(
             compare_by.replace("_", " ").title()
@@ -810,7 +810,7 @@ else:
     # ========================================================
 
     with st.expander(
-        "View Aggregated Data"
+        "Aggregated data"
     ):
 
         st.dataframe(
@@ -826,7 +826,7 @@ else:
 
 st.download_button(
 
-    label="⬇ Download Filtered Results",
+    label="Download filtered results (CSV)",
 
     data=filtered_df.to_csv(
         index=False
@@ -843,7 +843,7 @@ st.download_button(
 # ============================================================
 
 with st.expander(
-    "View Filtered Benchmark Data"
+    "Filtered runs"
 ):
 
     st.dataframe(

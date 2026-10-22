@@ -70,11 +70,14 @@ the desktop session down with it.
 Dashboards:
 
 ```bash
-streamlit run openvino_benchmarking/openvino_dashboard/app.py               # device / model comparison
-streamlit run openvino_benchmarking/openvino_dashboard/app_experiment2.py   # long generations, KV cache, memory
+cd openvino_benchmarking/openvino_dashboard      # so Streamlit picks up the theme in .streamlit/
+streamlit run app.py                 # device / model comparison
+streamlit run app_experiment2.py     # long generations: KV cache, memory, disk / swap, limits
 ```
 
 Both read the CSVs in `openvino_dashboard/data/` (the measurements below); copy new result CSVs there to view them.
+The long-generation dashboard counts the latest attempt of each model / device / length by default (the first NPU
+sweep was re-run with a corrected prompt-length setting); a sidebar switch shows every attempt.
 
 ## Findings
 

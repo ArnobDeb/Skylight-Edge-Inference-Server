@@ -1,27 +1,27 @@
+import sys
+from pathlib import Path
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import theme as T  # noqa: E402
 
 
 # ============================================================
 # PAGE CONFIG
 # ============================================================
 
-st.set_page_config(
-    page_title="Experiment 2 — KV Cache & Memory",
-    page_icon="🧠",
-    layout="wide",
-)
+T.page("KV cache & memory scaling", "🧠")
 
 
 # ============================================================
 # HELPERS
 # ============================================================
 
-DATA_DIR = Path("data")
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 
 def pretty_name(name):
@@ -70,16 +70,14 @@ def add_discrete_xaxis(fig, values):
     )
 
 
-def style_fig(fig, height=520):
-    fig.update_layout(
-        height=height,
-        hovermode="x unified",
-        margin=dict(l=45, r=35, t=75, b=55),
-        title_x=0.02,
-        title_font=dict(size=20),
-        legend_title_text="",
-    )
+def style_fig(fig, height=480):
+    fig.update_layout(height=height, hovermode="x unified", legend_title_text="")
     return fig
+
+
+def colors(column):
+    """Fixed colour per model / device / status, the same under every filter."""
+    return T.color_map(column, df[column].astype(str)) if column in df.columns else {}
 
 
 # ============================================================
@@ -91,7 +89,7 @@ csv_files = sorted(DATA_DIR.glob("*.csv"))
 if not csv_files:
     st.error(
         "No CSV file found in the data/ directory. "
-        "Place the Experiment 2 CSV inside data/ and reload."
+        "Place the benchmark CSV inside data/ and reload."
     )
     st.stop()
 
@@ -105,7 +103,7 @@ default_csv = next(
 )
 
 selected_file = st.sidebar.selectbox(
-    "Experiment CSV",
+    "Results file",
     csv_files,
     index=csv_files.index(default_csv),
     format_func=lambda p: p.name,
@@ -162,30 +160,45 @@ for col in numeric_candidates:
 # HEADER
 # ============================================================
 
-st.title("🧠 Experiment 2 — KV Cache & Memory Scaling")
-
-st.caption(
-    "Long-generation stress test: fixed input context with increasing "
-    "generation length, focusing on KV-cache growth, RAM usage, "
-    "device memory, disk I/O and failure limits."
+T.hero(
+    "Long-generation stress test",
+    "KV cache & memory scaling",
+    "A fixed input context with a growing generation length: how the KV cache grows, what it does to RAM and "
+    "device memory, disk and swap activity, and where each model and device stops succeeding.",
+    ["models: " + ", ".join(sorted(df["model"].dropna().unique())) if "model" in df.columns else "",
+     "devices: " + ", ".join(sorted(df["device"].dropna().unique())) if "device" in df.columns else "",
+     f"{len(df)} runs"],
 )
 
-st.info(
-    "Important: `kv_estimated_*` is an estimated KV-cache footprint "
-    "derived from model/cache parameters in the benchmark CSV. "
-    "It is not a direct hardware allocation measurement. "
-    "Disk read/write is shown as observed process I/O during generation "
-    "and should not by itself be interpreted as proof of KV-cache SSD offloading."
+T.note(
+    "<b>How to read the memory numbers.</b> <code>kv_estimated_*</code> is an estimate of the KV-cache footprint "
+    "computed from the model's cache shape (layers × KV heads × head size × bytes × tokens), not a measured "
+    "hardware allocation. Disk reads and writes are the process's observed I/O during generation; on their own they "
+    "do not show that the KV cache was offloaded to the SSD."
 )
-
-st.divider()
 
 
 # ============================================================
 # SIDEBAR FILTERS
 # ============================================================
 
-st.sidebar.header("Experiment Filters")
+st.sidebar.markdown("### Filters")
+
+# The NPU sweep was re-run with a corrected prompt-length setting: the CSV keeps both attempts. By default only the
+# latest attempt of every configuration counts, so superseded failures do not show up as limits.
+config_key = [c for c in ("model", "device", "max_new_tokens", "requested_input_tokens") if c in df.columns]
+if "timestamp" in df.columns and config_key:
+    n_all = len(df)
+    latest_only = st.sidebar.toggle(
+        "Latest attempt per configuration",
+        value=True,
+        help="Re-runs replace earlier attempts of the same model, device and length "
+             "(the first NPU sweep failed on a prompt-length setting and was repeated).",
+    )
+    if latest_only:
+        df = (df.assign(_ts=pd.to_datetime(df["timestamp"], errors="coerce"))
+                .sort_values("_ts").drop_duplicates(config_key, keep="last").drop(columns="_ts"))
+        st.sidebar.caption(f"{len(df)} of {n_all} runs (latest attempts)")
 
 models = sorted(df["model"].dropna().unique().tolist()) if "model" in df.columns else []
 devices = sorted(df["device"].dropna().unique().tolist()) if "device" in df.columns else []
@@ -260,7 +273,7 @@ failed = filtered[
 # OVERVIEW
 # ============================================================
 
-st.subheader("Experiment Overview")
+st.subheader("Overview")
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 
@@ -297,20 +310,17 @@ with c6:
         else "-",
     )
 
-st.divider()
-
-
 # ============================================================
 # TABS
 # ============================================================
 
 tab_kv, tab_ram, tab_perf, tab_storage, tab_limits = st.tabs(
     [
-        "📈 KV Cache Growth",
-        "💾 RAM & Device Memory",
-        "⚡ Generation Performance",
-        "💿 Disk / Swap Activity",
-        "🚧 Limits & Failures",
+        "KV cache growth",
+        "RAM & device memory",
+        "Generation performance",
+        "Disk & swap",
+        "Limits & failures",
     ]
 )
 
@@ -368,6 +378,7 @@ with tab_kv:
                 x="max_new_tokens",
                 y=kv_metric,
                 color=kv_compare,
+                color_discrete_map=colors(kv_compare),
                 markers=True,
                 title=f"{pretty_name(kv_metric)} vs Generated Tokens",
             )
@@ -377,6 +388,7 @@ with tab_kv:
                 x="max_new_tokens",
                 y=kv_metric,
                 color=kv_compare,
+                color_discrete_map=colors(kv_compare),
                 barmode="group",
                 title=f"{pretty_name(kv_metric)} vs Generated Tokens",
             )
@@ -392,10 +404,11 @@ with tab_kv:
         )
         st.plotly_chart(fig, width="stretch")
 
-        st.markdown(
-            "**Interpretation:** with the input held at the experiment's "
-            "fixed prompt length, this plot shows how the estimated "
-            "KV-cache footprint grows as more tokens are generated."
+        T.note(
+            "With the input held at a fixed prompt length, the estimated KV-cache footprint grows linearly with "
+            "every generated token (the x axis doubles at each step, so the curve bends upward; the plot against "
+            "total sequence length below is a straight line). Qwen3-4B and Qwen3-8B have the same KV-cache shape "
+            "(36 layers × 8 KV heads × 128), so their lines lie on top of each other."
         )
 
         st.subheader("KV Cache vs Total Sequence Length")
@@ -415,6 +428,7 @@ with tab_kv:
             x="total_sequence_tokens",
             y="kv_estimated_gb",
             color="model",
+            color_discrete_map=colors("model"),
             markers=True,
             title="Estimated KV Cache vs Total Sequence Length",
         )
@@ -515,6 +529,7 @@ with tab_ram:
                 x="max_new_tokens",
                 y=memory_metric,
                 color=memory_compare,
+                color_discrete_map=colors(memory_compare),
                 markers=True,
                 title=f"{pretty_name(memory_metric)} vs Generated Tokens",
             )
@@ -524,6 +539,7 @@ with tab_ram:
                 x="max_new_tokens",
                 y=memory_metric,
                 color=memory_compare,
+                color_discrete_map=colors(memory_compare),
                 barmode="group",
                 title=f"{pretty_name(memory_metric)} vs Generated Tokens",
             )
@@ -550,6 +566,7 @@ with tab_ram:
             x="kv_estimated_gb",
             y="system_peak_ram_used_mb",
             color="model",
+            color_discrete_map=colors("model"),
             symbol="device",
             hover_data=[
                 "max_new_tokens",
@@ -564,12 +581,10 @@ with tab_ram:
         )
         st.plotly_chart(fig2, width="stretch")
 
-        st.info(
-            "For NPU runs, `npu_allocated_mem_after_mb` is a particularly "
-            "useful hardware-side signal because the benchmark records "
-            "NPU allocation directly. For CPU/GPU runs, the process RSS "
-            "and system RAM columns should not be interpreted as device "
-            "VRAM/GPU-memory measurements."
+        T.note(
+            "For NPU runs, <code>npu_allocated_mem_after_mb</code> is a direct hardware-side signal: the benchmark "
+            "records the NPU allocation itself. For CPU and GPU runs, process RSS and system RAM are not "
+            "GPU-memory measurements."
         )
 
 
@@ -637,6 +652,7 @@ with tab_perf:
                 x="max_new_tokens",
                 y=perf_metric,
                 color=perf_compare,
+                color_discrete_map=colors(perf_compare),
                 markers=True,
                 title=f"{pretty_name(perf_metric)} vs Generation Length",
             )
@@ -646,6 +662,7 @@ with tab_perf:
                 x="max_new_tokens",
                 y=perf_metric,
                 color=perf_compare,
+                color_discrete_map=colors(perf_compare),
                 barmode="group",
                 title=f"{pretty_name(perf_metric)} vs Generation Length",
             )
@@ -678,6 +695,7 @@ with tab_perf:
             x="max_new_tokens",
             y="generated_tokens",
             color="model",
+            color_discrete_map=colors("model"),
             markers=True,
             title="Requested Output vs Actual Generated Tokens",
         )
@@ -690,7 +708,7 @@ with tab_perf:
                 y=xvals,
                 mode="lines",
                 name="Requested = Generated",
-                line=dict(dash="dash"),
+                line=dict(dash="dash", color=T.FULL),
             )
         )
 
@@ -763,6 +781,7 @@ with tab_storage:
                 x="max_new_tokens",
                 y=storage_metric,
                 color=storage_compare,
+                color_discrete_map=colors(storage_compare),
                 markers=True,
                 title=f"{pretty_name(storage_metric)} vs Generation Length",
             )
@@ -813,11 +832,9 @@ with tab_storage:
                 else "-"
             )
 
-        st.warning(
-            "Disk reads/writes measured during generation are an I/O "
-            "observation, not a direct attribution to KV-cache offloading. "
-            "To prove KV-cache offloading to SSD, the benchmark would need "
-            "an explicit cache/offload instrumentation signal."
+        T.note(
+            "Disk reads and writes during generation are an I/O observation, not an attribution to the KV cache. "
+            "Showing KV-cache offloading to the SSD would need an explicit cache / offload signal from the runtime."
         )
 
 
@@ -847,6 +864,7 @@ with tab_limits:
             .reset_index()
         )
 
+        matrix["model · device"] = matrix["model"].astype(str) + " · " + matrix["device"].astype(str)
         matrix["result"] = matrix["outcome"].map(
             {
                 "SUCCESS": "✓ Success",
@@ -857,11 +875,13 @@ with tab_limits:
         fig = px.scatter(
             matrix,
             x="max_new_tokens",
-            y="model",
+            y="model · device",
             color="outcome",
             symbol="outcome",
-            hover_data=["device", "result"],
-            title="Success / Failure Frontier",
+            color_discrete_map={"SUCCESS": T.STATUS_COLORS["SUCCESS"], "FAILED": T.STATUS_COLORS["FAILED"]},
+            symbol_map={"SUCCESS": "circle", "FAILED": "x"},
+            hover_data=["result"],
+            title="Success / failure frontier (one row per model and device)",
         )
         style_fig(fig)
         add_discrete_xaxis(
@@ -870,8 +890,9 @@ with tab_limits:
         )
         fig.update_layout(
             xaxis_title="Requested Output Tokens",
-            yaxis_title="Model",
+            yaxis_title="",
         )
+        fig.update_traces(marker=dict(size=11))
         st.plotly_chart(fig, width="stretch")
 
         # Failure table
@@ -930,7 +951,7 @@ with tab_limits:
 
 st.divider()
 
-with st.expander("View Filtered Raw Data"):
+with st.expander("Filtered runs (raw data)"):
 
     st.dataframe(
         filtered,
@@ -938,8 +959,8 @@ with st.expander("View Filtered Raw Data"):
     )
 
 st.download_button(
-    label="⬇ Download Filtered CSV",
+    label="Download filtered runs (CSV)",
     data=filtered.to_csv(index=False),
-    file_name="experiment2_filtered.csv",
+    file_name="kv_cache_scaling_filtered.csv",
     mime="text/csv",
 )
